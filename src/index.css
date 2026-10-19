@@ -22,6 +22,12 @@
   --shadow-card: 0 22px 65px rgba(16, 47, 58, 0.16);
 }
 
+:root {
+  --header-h: 4rem;
+  --map-casing: #ffffff;
+  --map-bg-station: #ffffff;
+}
+
 @layer base {
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -44,19 +50,18 @@
   .contrast-button-active { @apply bg-white text-ink hover:bg-white; }
   .reader-button { @apply flex min-h-9 items-center gap-2 rounded-lg border-2 border-white bg-white px-3 text-xs font-extrabold text-ink hover:bg-brand-soft; }
   .reader-button-active { @apply bg-warning-soft text-warning; }
-  .nav-link { @apply relative py-6 text-sm font-bold text-ink-muted transition-colors hover:text-brand; }
+  .app-header { @apply sticky top-0 z-30 border-b border-border bg-white/95 backdrop-blur; }
+  .nav-link { @apply relative flex h-16 items-center text-sm font-bold text-ink-muted transition-colors hover:text-brand; }
   .nav-link-active { @apply text-brand; }
   .nav-link-active::after { content: ""; @apply absolute inset-x-0 bottom-0 h-1 rounded-full bg-brand; }
   .icon-button { @apply grid size-11 place-items-center rounded-xl text-ink-muted transition-colors hover:bg-surface hover:text-brand; }
   .eyebrow { @apply inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-2 text-sm font-extrabold text-brand-dark; }
-  .station-selector { @apply rounded-2xl border-2 border-border bg-canvas p-4; }
   .field-legend { @apply mb-3 px-1 text-base font-extrabold text-ink; }
   .field-label { @apply mb-2 block text-sm font-bold text-ink-muted; }
   .field-icon { @apply pointer-events-none absolute left-4 top-1/2 -translate-y-1/2; }
   .selector-dot { @apply size-5 shrink-0 rounded-full border-2 border-white shadow-sm; }
   .field-select { @apply min-h-12 w-full rounded-xl border-2 border-border bg-white px-3 font-bold text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15; }
   .field-select-station { @apply pl-12; }
-  .swap-button-new { @apply mx-auto flex min-h-11 items-center gap-2 rounded-xl border-2 border-brand bg-white px-4 text-sm font-extrabold text-brand transition hover:bg-brand-soft; }
   .option-row { @apply flex items-center gap-3 rounded-2xl border-2 border-transparent bg-surface p-3.5 transition hover:border-border; }
   .option-icon { @apply grid size-11 shrink-0 place-items-center rounded-xl bg-white text-brand; }
   .toggle { @apply relative h-7 w-12 shrink-0 rounded-full border-2 border-ink-muted bg-white transition-colors; }
@@ -66,9 +71,7 @@
   .primary-button { @apply flex min-h-14 items-center justify-center gap-2 rounded-xl bg-brand px-5 font-extrabold text-white shadow-soft transition hover:bg-brand-dark active:translate-y-px; }
   .map-chip { @apply rounded-full border-2 border-border px-4 py-2 text-xs font-bold text-ink shadow-soft; }
   .map-chip-active { @apply border-brand bg-brand text-white; }
-  .map-legend { @apply absolute left-5 right-5 top-20 rounded-2xl border-2 border-border bg-white/95 p-4 shadow-soft sm:right-auto sm:max-w-md; }
   .line-pill { @apply inline-flex min-h-8 items-center rounded-full px-3 text-xs font-extrabold; }
-  .route-summary { @apply absolute bottom-5 left-5 right-5 overflow-hidden rounded-2xl border-2 border-border bg-white shadow-card sm:left-auto sm:w-[420px]; }
   .line-badge { @apply inline-grid min-h-7 min-w-7 shrink-0 place-items-center rounded-full px-2 text-xs font-extrabold; }
   .service-panel { @apply mt-8 rounded-3xl border-2 border-border bg-white p-5 shadow-card sm:p-7; }
   .service-panel-header { @apply mb-6 flex flex-wrap items-center justify-between gap-4 border-b-2 border-border pb-5; }
@@ -117,6 +120,63 @@
   .emergency-button { @apply fixed bottom-4 right-4 z-40 flex min-h-12 items-center gap-2 rounded-full border-2 border-white bg-danger px-4 sm:bottom-5 sm:right-5 sm:min-h-14 sm:px-5 font-extrabold text-white shadow-card transition hover:brightness-110; }
   .dialog { @apply m-auto w-[calc(100%-2rem)] rounded-3xl border-2 border-border bg-white p-0 text-ink shadow-card; }
   .primary-button:disabled { @apply cursor-not-allowed opacity-60; }
+
+  /* Planificador y mapa */
+  .planner-shell { @apply grid border-b-2 border-border bg-white; grid-template-areas: "form" "map" "trip"; }
+  .planner-form { grid-area: form; @apply relative z-20 px-4 pb-4 pt-5 sm:px-6; }
+  .planner-trip { grid-area: trip; @apply px-4 pb-8 pt-4 sm:px-6; }
+  .planner-map { grid-area: map; @apply relative flex h-[82svh] min-h-[520px] flex-col border-y-2 border-border bg-map; }
+  @media (min-width: 1024px) {
+    .planner-shell { grid-template-columns: 410px minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "form map" "trip map"; }
+    .planner-form { @apply border-r-2 border-border; }
+    .planner-trip { @apply border-r-2 border-border pt-0; }
+    .planner-map { position: sticky; top: var(--header-h); align-self: start; height: calc(100dvh - var(--header-h)); min-height: 540px; @apply border-y-0; }
+  }
+  .station-field { @apply flex min-h-12 items-center gap-2.5 rounded-xl border-2 border-border bg-white pl-2.5 pr-3 transition focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15; }
+  .station-input { @apply min-w-0 flex-1 bg-transparent py-2 font-bold text-ink outline-none placeholder:font-semibold placeholder:text-ink-muted; }
+  .station-input:focus-visible { outline: none; }
+  .station-list { @apply absolute inset-x-0 z-40 mt-1 max-h-72 overflow-y-auto rounded-xl border-2 border-border bg-white p-1 shadow-card; }
+  .station-option { @apply flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-semibold; }
+  .station-option-active { @apply bg-brand-soft text-brand-dark; }
+  .line-dot { @apply inline-grid size-5 place-items-center rounded-full text-[10px] leading-none font-extrabold; }
+  .pin-dot { @apply grid size-6 shrink-0 place-items-center rounded-full text-xs font-extrabold text-white; }
+  .swap-button { @apply grid size-11 place-items-center rounded-full border-2 border-border bg-white text-brand transition hover:border-brand hover:bg-brand-soft; }
+  .profile-trigger { @apply flex min-h-14 w-full items-center gap-3 rounded-xl border-2 border-border bg-white p-1.5 pr-3 transition hover:border-brand; }
+  .profile-trigger[aria-expanded="true"] { @apply border-brand ring-4 ring-brand/15; }
+  .profile-trigger .option-icon { @apply size-10 bg-brand-soft; }
+  .profile-panel { @apply absolute inset-x-0 z-40 mt-1 max-h-[min(70vh,560px)] overflow-y-auto rounded-2xl border-2 border-border bg-white p-2 shadow-card; }
+  .profile-option { @apply flex cursor-pointer items-start gap-3 rounded-xl p-2.5 transition hover:bg-surface; }
+  .profile-option input { @apply mt-0.5; }
+  .profile-option-active { @apply bg-brand-soft hover:bg-brand-soft; }
+  .route-bar { @apply flex flex-wrap items-center gap-x-4 gap-y-2 border-b-2 border-border bg-white px-3 py-2 sm:px-4 sm:py-2.5; }
+  .route-metrics { @apply flex flex-wrap items-center gap-x-3.5 gap-y-1 sm:gap-x-5; }
+  @media (max-width: 639px) { .route-metrics dt { font-size: 10px; } .route-metrics dd { font-size: 0.875rem; } }
+  .route-metrics dt { @apply text-[11px] font-bold uppercase tracking-wide text-ink-muted; }
+  .route-metrics dd { @apply font-extrabold leading-tight; }
+  .map-canvas { @apply absolute inset-0 cursor-grab overflow-hidden outline-none active:cursor-grabbing; background-color: var(--color-map); background-image: linear-gradient(rgba(72, 97, 106, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(72, 97, 106, 0.08) 1px, transparent 1px); background-size: 40px 40px; }
+  .map-canvas:focus-visible { outline: 3px solid #005fcc; outline-offset: -3px; }
+  .map-station { cursor: pointer; }
+  .map-controls { @apply absolute bottom-3 left-3 flex flex-col sm:bottom-auto sm:left-auto sm:right-3 sm:top-3 overflow-hidden rounded-xl border-2 border-border bg-white shadow-soft; }
+  .map-control { @apply grid size-10 place-items-center border-b border-border text-ink transition last:border-b-0 hover:bg-surface hover:text-brand; }
+  .station-popover { @apply absolute z-20 w-[280px] max-w-[calc(100%-16px)] rounded-2xl border-2 border-border bg-white p-3 text-ink shadow-card; }
+  .popover-button { @apply flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border-2 border-border bg-white px-2 text-xs font-extrabold transition hover:border-brand hover:bg-brand-soft disabled:cursor-default disabled:opacity-45 disabled:hover:border-border disabled:hover:bg-white; }
+  .popover-button .pin-dot { @apply size-5 text-[10px]; }
+  .map-legend-bar { @apply flex flex-wrap items-center gap-x-4 gap-y-1 border-t-2 border-border bg-white px-4 py-2 text-xs; }
+  .legend-item { @apply inline-flex items-center gap-1.5 font-semibold; }
+  .legend-transfer { @apply inline-block size-3.5 rounded-full border-2 border-ink; background: radial-gradient(circle, var(--color-ink-muted) 0 35%, white 40%); }
+  .trip-panel { @apply rounded-2xl border-2 border-border bg-canvas p-4; }
+  .callout { @apply mt-3 flex gap-2 rounded-xl border-2 border-border bg-surface p-3 text-sm font-semibold; }
+  .callout-warning { @apply border-warning bg-warning-soft text-warning; }
+  .callout-success { @apply border-success bg-success-soft text-success; }
+  .tabs { @apply mt-4 grid grid-cols-3 gap-1 rounded-xl bg-surface p-1; }
+  .tab { @apply min-h-10 rounded-lg px-1 text-sm font-bold text-ink-muted transition hover:text-ink; }
+  .tab-active { @apply bg-white text-ink shadow-sm; }
+  .timeline { @apply relative space-y-3; }
+  .timeline::before { content: ""; @apply absolute bottom-3 left-4 top-3 w-0.5 bg-border; }
+  .timeline-step { @apply relative flex items-start gap-3; }
+  .timeline-step p { @apply pt-1; }
+  .timeline-step-warn p { @apply rounded-lg bg-warning-soft px-2 text-warning; }
+  .timeline-icon { @apply relative grid size-8 shrink-0 place-items-center rounded-full ring-4 ring-canvas; }
 }
 
 dialog::backdrop { background: rgba(16, 47, 58, 0.55); }
@@ -127,14 +187,8 @@ dialog::backdrop { background: rgba(16, 47, 58, 0.55); }
   background-size: 42px 42px;
 }
 
-.metro-line { opacity: 0.28; transition: opacity 180ms ease; }
-.metro-line polyline { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
-.metro-line-active { opacity: 1; }
-.metro-line-active polyline { stroke-width: 8; paint-order: stroke; }
-.dynamic-route-outline { fill: none; stroke: white; stroke-width: 13; stroke-linecap: round; stroke-dasharray: 10 8; }
-.dynamic-route { fill: none; stroke: var(--color-ink); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 10 8; }
-.station-halo { fill: white; stroke: var(--color-ink); stroke-width: 3; }
-.selected-station text { fill: var(--color-ink); font-family: var(--font-sans); font-size: 14px; font-weight: 800; paint-order: stroke; stroke: white; stroke-width: 5px; stroke-linejoin: round; }
+.map-labels text { fill: var(--color-ink); font-family: var(--font-sans); paint-order: stroke; stroke: white; stroke-linejoin: round; }
+.map-labels text.map-label-muted { fill: var(--color-ink-muted); }
 
 .high-contrast {
   --color-canvas: #ffffff;
@@ -154,15 +208,9 @@ dialog::backdrop { background: rgba(16, 47, 58, 0.55); }
   --color-danger-soft: #ffe0e0;
 }
 
-.high-contrast .map-grid { opacity: 0.25; }
-.high-contrast .metro-line { opacity: 0.42; }
-.high-contrast .metro-line-active { opacity: 1; }
-.high-contrast .map-chip, .high-contrast .map-legend, .high-contrast .route-summary, .high-contrast .station-selector { box-shadow: none; }
+.high-contrast .map-canvas { background-image: none; }
+.high-contrast .map-chip, .high-contrast .station-popover, .high-contrast .map-controls { box-shadow: none; }
 
-@media (max-width: 639px) {
-  .selected-station text { font-size: 16px; }
-  .route-summary { max-height: 245px; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }

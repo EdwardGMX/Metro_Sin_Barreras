@@ -8,6 +8,7 @@ Prototipo de aplicación web progresiva (PWA) que recomienda rutas accesibles en
 
 | Función | Requisitos |
 |---|---|
+| Mapa interactivo de la red completa (12 líneas, 163 estaciones): arrastrar, acercar con rueda, pellizco o botones; tocar una estación para elegirla como origen o destino; saturación por colores y estaciones de transbordo marcadas | RF-10, RF-12, RIE-01 |
 | Ruta accesible con Dijkstra dependiente del tiempo; etiquetas “Accesible”, “Accesible con apoyo” o “Sin ruta posible” | RF-10, RF-11, RN1, RN2 |
 | Siete perfiles de movilidad combinables (silla de ruedas; bastón, muletas o andadera; persona adulta mayor; ceguera o baja visión; perro guía; sordera o hipoacusia; carriola, equipaje, embarazo o lesión temporal) | RF-22, RN7 |
 | Planeación con “Salir ahora”, “Salir a las” y “Llegar a las”, en franjas de 30 minutos dentro del horario de servicio y hasta 30 días después | RF-18, RN4 |
@@ -58,7 +59,7 @@ npm run preview  # sirve dist/ localmente
 
 ```
 src/
-  data/metroData.ts       Red del Metro del prototipo (12 líneas, estaciones principales)
+  data/metroData.ts       Red del Metro (12 líneas, 163 estaciones, coordenadas aproximadas)
   data/accessibility.ts   Inventario demostrativo: medios de desnivel y equipos por acceso y transbordo
   data/saturation.ts      Perfil horario ilustrativo, horario de servicio y saturación por franja
   lib/profiles.ts         Perfiles de movilidad y restricciones codificadas (RN7)
@@ -66,6 +67,7 @@ src/
   lib/reports.ts          Reportes, seudónimos, validación comunitaria, moderación y retención (RN5)
   lib/evidence.ts         Validación, compresión y almacenamiento de fotos (RN6)
   lib/reglas.test.ts      Pruebas automáticas de las reglas
+  components/MetroMap.tsx Mapa interactivo (SVG con zoom, arrastre y selección de estaciones)
   components/             Interfaz (planificador, resultado, reportes, moderación, emergencia, privacidad)
 public/                   Manifiesto PWA, íconos y service worker
 .github/workflows/        Publicación automática en GitHub Pages
@@ -73,6 +75,7 @@ public/                   Manifiesto PWA, íconos y service worker
 
 ## Limitaciones conocidas
 
+- Las coordenadas de las estaciones son aproximadas y solo sirven para dibujar el mapa.
 - El inventario de accesos y equipos y la afluencia son ilustrativos; en la versión final provienen del STC, de ADIP y de la EOD 2017 del INEGI.
 - La autenticación es simulada: no se conecta con Llave CDMX ni pide contraseñas.
 - Los reportes, sesiones y fotos se guardan solo en el navegador de cada persona; no se comparten entre dispositivos.

@@ -5,7 +5,7 @@
  * del STC (RF-02) y del perfilado de accesos y transbordos (WBS 2.3). Aquí se
  * generan de forma determinista para que el prototipo sea reproducible.
  */
-import { allStations, linesAtStation } from "./metroData"
+import { allStations, getLine, linesAtStation } from "./metroData"
 
 /** Medio para salvar un desnivel (RF-10). */
 export type Medio =
@@ -62,8 +62,7 @@ const CON_ELEVADOR = new Set([
   "Consulado", "Guerrero", "Morelos", "Instituto del Petróleo", "Constitución de 1917",
   "Observatorio", "Barranca del Muerto", "Terminal Aérea",
 ])
-const LINEA_12 = new Set(["Mixcoac", "Insurgentes Sur", "Hospital 20 de Noviembre", "Zapata",
-  "Parque de los Venados", "Eje Central", "Ermita", "Atlalilco", "Tláhuac"])
+const LINEA_12 = new Set(getLine("12").stations)
 /** Estaciones con salvaescaleras en lugar de elevador (dato ilustrativo). */
 const CON_SALVAESCALERAS = new Set(["Normal", "Patriotismo", "Lázaro Cárdenas"])
 /** Accesos cuyo medio no está perfilado todavía: se tratan como inciertos (RN2). */

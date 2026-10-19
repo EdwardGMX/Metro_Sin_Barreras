@@ -66,12 +66,14 @@ export type ResultadoRuta = {
   transbordos: number
   lineIds: string[]
   estaciones: EstacionRuta[]
+  /** Estaciones donde la ruta cambia de línea. */
+  cambios: Array<{ station: string; de: string; a: string }>
   pasos: PasoRuta[]
   equipos: EquipoRuta[]
   penalizados: string[]
 }
 
-const TIEMPO_TRAMO = 2.5
+const TIEMPO_TRAMO = 2
 const TIEMPO_TRANSBORDO = 4
 const TIEMPO_MEDIO: Record<Medio, number> = {
   elevador: 3,
@@ -219,6 +221,7 @@ function construirResultado(q: ConsultaRuta, salida: number, camino: Etiqueta[],
   const equipos: EquipoRuta[] = []
   const penalizados: string[] = []
   const lineIds: string[] = []
+  const cambios: ResultadoRuta["cambios"] = []
   let incierto = false
   let transbordos = 0
   let tramoInicio: { station: string; line: string } | null = null
@@ -265,6 +268,7 @@ function construirResultado(q: ConsultaRuta, salida: number, camino: Etiqueta[],
       cerrarTramo(a.station)
       registrarEleccion(a, e.eleccion)
       transbordos++
+      cambios.push({ station: a.station, de: a.lineFrom!, a: a.lineTo! })
       const medio = e.eleccion ? MEDIO_LABEL[e.eleccion.medio] : "pasillo"
       pasos.push({
         tipo: "transbordo",
@@ -295,6 +299,7 @@ function construirResultado(q: ConsultaRuta, salida: number, camino: Etiqueta[],
     transbordos,
     lineIds,
     estaciones,
+    cambios,
     pasos,
     equipos,
     penalizados,
@@ -308,7 +313,7 @@ function sinRuta(q: ConsultaRuta, salida: number, estado: ConsultaEstado): Resul
   if (!accesoOk(q.origen)) mensaje += ` ${q.origen} no tiene ahora un acceso compatible (por ejemplo, solo escaleras fijas o el equipo está fuera de servicio).`
   else if (!accesoOk(q.destino)) mensaje += ` ${q.destino} no tiene ahora un acceso compatible (por ejemplo, solo escaleras fijas o el equipo está fuera de servicio).`
   else mensaje += " Ningún transbordo disponible permite conectar las dos estaciones."
-  return { estado: "sin_ruta", mensaje, salida, llegada: salida, duracion: 0, transbordos: 0, lineIds: [], estaciones: [], pasos: [], equipos: [], penalizados: [] }
+  return { estado: "sin_ruta", mensaje, salida, llegada: salida, duracion: 0, transbordos: 0, lineIds: [], estaciones: [], cambios: [], pasos: [], equipos: [], penalizados: [] }
 }
 
 /** Calcula la ruta para una hora de salida fija. */
@@ -324,7 +329,7 @@ function rutaDesde(q: ConsultaRuta, salida: number, estado: ConsultaEstado): Res
 export function calcularRuta(q: ConsultaRuta, estado: ConsultaEstado): ResultadoRuta {
   const { abre, cierra } = HORARIO[tipoDia(q.fecha)]
   const fuera = (msg: string, salida: number): ResultadoRuta => ({
-    estado: "fuera_de_horario", mensaje: msg, salida, llegada: salida, duracion: 0, transbordos: 0, lineIds: [], estaciones: [], pasos: [], equipos: [], penalizados: [],
+    estado: "fuera_de_horario", mensaje: msg, salida, llegada: salida, duracion: 0, transbordos: 0, lineIds: [], estaciones: [], cambios: [], pasos: [], equipos: [], penalizados: [],
   })
   if (q.tipoHora !== "llegar_a") {
     if (!enHorario(q.fecha, q.hora)) {

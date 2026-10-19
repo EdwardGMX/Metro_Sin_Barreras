@@ -2,7 +2,7 @@
  * Red primero para la página (para recibir actualizaciones) y caché como respaldo;
  * caché primero para los archivos estáticos. Así, después de la primera visita,
  * la aplicación y el botón de emergencia abren sin conexión. */
-const CACHE = "msb-v2"
+const CACHE = "msb-v3"
 const BASICOS = ["./", "./index.html", "./manifest.webmanifest", "./favicon.svg", "./icon-192.png", "./icon-512.png"]
 
 self.addEventListener("install", (event) => {

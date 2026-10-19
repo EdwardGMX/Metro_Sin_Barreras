@@ -4,6 +4,7 @@ export type IconName =
   | "alert" | "arrow-right" | "calendar" | "camera" | "check" | "clock" | "contrast" | "elevator"
   | "eye" | "ear" | "info" | "location" | "lock" | "people" | "phone" | "route" | "shield"
   | "speaker" | "stairs" | "swap" | "train" | "user" | "wheelchair" | "x" | "walker" | "dog" | "bag" | "senior"
+  | "plus" | "minus" | "expand" | "chevron-down" | "search" | "map" | "list"
 
 const icons: Record<IconName, ReactNode> = {
   alert: (<><path d="M12 3 2.5 20h19L12 3Z" /><path d="M12 10v4m0 3h.01" /></>),
@@ -33,6 +34,13 @@ const icons: Record<IconName, ReactNode> = {
   walker: (<><circle cx="9" cy="4" r="2" /><path d="M9 7v6l-2 7m2-7 3 2v5M12 9h6v11M15 9v11" /></>),
   dog: (<><path d="M4 18v-5l2-4h7l3-3 3 1-1 3v8" /><path d="M7 18v-3m6 3v-4M4 13l-2-2" /></>),
   bag: (<><rect x="5" y="8" width="14" height="12" rx="2" /><path d="M9 8V5h6v3M5 13h14" /></>),
+  plus: <path d="M12 5v14M5 12h14" />,
+  minus: <path d="M5 12h14" />,
+  expand: <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />,
+  "chevron-down": <path d="m6 9 6 6 6-6" />,
+  search: (<><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></>),
+  map: <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 0v14m6-12v14" />,
+  list: <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />,
   senior: (<><circle cx="11" cy="4" r="2" /><path d="M11 7v6l-3 7m3-7 3 3 1 4M8 10l3-2 3 2M17 10v10" /></>),
 }
 
