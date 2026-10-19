@@ -1,0 +1,28 @@
+{
+  "name": "metro-sin-barreras",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Prototipo PWA de rutas accesibles en el Metro de la Ciudad de México (Equipo 1, ESCOM-IPN).",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^8.0.5",
+    "vitest": "^5.0.0"
+  }
+}
