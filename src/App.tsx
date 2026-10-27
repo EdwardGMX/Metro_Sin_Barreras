@@ -9,7 +9,6 @@ import { guardar, leer } from "./lib/storage"
 import { EmergencyButton } from "./components/Emergency"
 import { Icon } from "./components/Icon"
 import { MetroMap } from "./components/MetroMap"
-import { Moderation } from "./components/Moderation"
 import { isoLocal, parseFecha, ProfileDropdown, StationSearch, TimePicker } from "./components/Planner"
 import { AvisoPrivacidad } from "./components/Privacy"
 import { Reports, type Sesion } from "./components/Reports"
@@ -47,7 +46,6 @@ export default function App() {
   const [consulta, setConsulta] = useState<ConsultaRuta | null>(null)
   const [preseleccion, setPreseleccion] = useState<{ station: string; equipmentId: string; n: number } | null>(null)
   const [avisoAbierto, setAvisoAbierto] = useState(false)
-  const [verModeracion, setVerModeracion] = useState(false)
   const [enLinea, setEnLinea] = useState(() => navigator.onLine)
   const [reloj, setReloj] = useState(() => Date.now())
 
@@ -357,7 +355,6 @@ export default function App() {
             <Reports db={db} actualizar={actualizar} sesion={sesion} setSesion={setSesion} preseleccion={preseleccion} onAviso={() => setAvisoAbierto(true)} />
           </section>
 
-          {verModeracion && <Moderation db={db} actualizar={actualizar} />}
         </div>
 
         <section id="ayuda" className="border-t-2 border-border bg-white">
@@ -400,9 +397,9 @@ export default function App() {
             <button type="button" className="secondary-button" onClick={() => setAvisoAbierto(true)}>
               Aviso de privacidad
             </button>
-            <button type="button" className="secondary-button" onClick={() => setVerModeracion((v) => !v)} aria-pressed={verModeracion}>
-              {verModeracion ? "Ocultar" : "Ver"} panel de moderación (demostración)
-            </button>
+            <a href="#/consola" className="secondary-button">
+              <Icon name="shield" size="sm" /> Consola del personal
+            </a>
           </div>
         </div>
       </footer>

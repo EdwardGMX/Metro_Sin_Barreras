@@ -18,12 +18,28 @@ Prototipo de aplicación web progresiva (PWA) que recomienda rutas accesibles en
 | Verificación opcional de Tarjeta Incluyente con consentimiento expreso y revocable; baja de cuenta | RF-19, RL-02, RL-08 |
 | Reportes con opciones predefinidas (sin texto libre), límite de 5 al día y 1 por equipo cada 2 h, validación comunitaria (3 personas en 6 h, o 2 si una está verificada) | RF-16, RF-20, RN5 |
 | Fotos JPEG/WebP verificadas por firma de bytes, reducidas a 1280 px y 1 MB, sin EXIF/GPS, borrado a 90 días y detección de fotos repetidas | RF-21, RN6 |
-| Panel de moderación y bitácora (demostración) | RNF-06, RNF-07 |
+| **Consola del personal** (`#/consola`): inicio de sesión institucional con verificación en dos pasos (simulado), siete roles con mínimo privilegio, módulos por rol, separación de funciones y bitácora de auditoría | HU-23 a HU-30, RN8, RN9, RNF-06, RNF-24 |
 | Botón de emergencia disponible sin conexión (service worker) | RF-15 |
 | Tamaño de texto, alto contraste, lectura en voz alta, lector de pantalla; 0 violaciones de axe (WCAG 2.2 AA) | RF-14, RNF-13, RNF-14 |
 | Aviso de privacidad simplificado | RL-03 |
 
 En el prototipo la “API” y la “base de datos” se simulan dentro del navegador (`src/lib/router.ts` y `src/lib/reports.ts`), con la misma lógica que tendría el servicio en Cloud Run y Firestore.
+
+## Consola del personal (`#/consola`)
+
+Atiende la observación de la revisión del avance: definir la interfaz de quienes administran la plataforma y qué especialistas deben tener acceso. Se diseñó como si el sistema ya se hubiera entregado: solo tienen cuenta las personas que lo operan, y cada una ve únicamente lo que su función necesita.
+
+| Rol | En el piloto | Después de la entrega | Módulos |
+|---|---|---|---|
+| Administración de la plataforma | Arquitecto Cloud / MLOps | Área de TI del STC | Cuentas y roles, Plataforma |
+| Ingeniería de datos | Ingeniero de Datos | Persona ingeniera de datos | Datos, Modelos (lectura) |
+| Ciencia de datos e IA | Especialista en IA / ML | Persona científica de datos | Modelos, Datos (lectura) |
+| Moderación de reportes | Ingeniera de QA / UAT | Atención a usuarios del STC | Moderación (único rol que ve fotos) |
+| Gobernanza y protección de datos | Oficial de Gobernanza + especialista externa | Oficial de protección de datos del STC | Privacidad, Contenidos (aprueba), Bitácora, Cuentas (lectura) |
+| Accesibilidad y contenidos | Frontend / UX + especialista externa | Comunicación accesible del STC | Contenidos (propone) |
+| Supervisión del servicio | Project Manager | Dirección o enlace del STC | Indicadores agregados |
+
+Reglas: las cuentas externas vencen con su contrato y solo consultan y proponen (RN8); no se combinan roles incompatibles, nadie modifica su propia cuenta y quien propone un contenido no lo aprueba (RN9); la sesión se cierra tras 15 minutos sin actividad; cada acción, incluidos los intentos negados, queda en la bitácora de auditoría. En producción la consola es un servicio aparte en Cloud Run protegido por Identity-Aware Proxy y Cloud Identity (verificación en dos pasos). Las reglas están en `src/lib/admin.ts` y sus pruebas en `src/lib/admin.test.ts`.
 
 ## Publicarlo en GitHub Pages (para tener un enlace público)
 
@@ -67,6 +83,9 @@ src/
   lib/reports.ts          Reportes, seudónimos, validación comunitaria, moderación y retención (RN5)
   lib/evidence.ts         Validación, compresión y almacenamiento de fotos (RN6)
   lib/reglas.test.ts      Pruebas automáticas de las reglas
+  lib/admin.ts            Consola del personal: roles, permisos, separación de funciones y auditoría (RN8, RN9)
+  lib/admin.test.ts       Pruebas del control de acceso de la consola
+  components/admin/       Consola del personal (inicio de sesión, módulos por rol)
   components/MetroMap.tsx Mapa interactivo (SVG con zoom, arrastre y selección de estaciones)
   components/             Interfaz (planificador, resultado, reportes, moderación, emergencia, privacidad)
 public/                   Manifiesto PWA, íconos y service worker

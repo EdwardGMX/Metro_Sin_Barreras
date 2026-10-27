@@ -213,6 +213,8 @@ export function moderar(db: BaseDatos, reporteId: string, decision: "aprobado" |
 /** Reportes de otras personas para que el prototipo muestre la validación comunitaria. */
 export function sembrarDemo(db: BaseDatos, now: number): BaseDatos {
   // Se regeneran en cada carga, relativos a la hora actual, para que siempre haya ejemplos vigentes.
+  // Las decisiones de moderación sobre los ejemplos en cuarentena se conservan entre recargas.
+  const decididos = new Map(db.reportes.filter((r) => r.id.startsWith("R-DEMO-Q") && r.moderacion !== "pendiente").map((r) => [r.id, r]))
   db.reportes = db.reportes.filter((r) => !r.id.startsWith("R-DEMO-"))
   const buscar = (station: string, tipo: string) =>
     todosLosEquipos.find((e) => e.station === station && e.tipo === tipo && e.ubicacion.startsWith("Acceso"))?.id ??
@@ -238,6 +240,34 @@ export function sembrarDemo(db: BaseDatos, now: number): BaseDatos {
       evidencias: [],
       cuarentena: false,
       moderacion: null,
+    })
+  }
+  // Reportes en cuarentena para la demostración del módulo de Moderación (no cuentan para el estado).
+  const cuarentena: Array<[string, string, EstadoReportado, number, string, string]> = [
+    ["Balderas", "Elevador", "no_funciona", 0.4, "demo-q1-7c21a9", "Confiabilidad baja de la cuenta"],
+    ["Zapata", "Elevador", "cerrado", 1.8, "demo-q2-e04b3d", "Cuenta nueva que reportó 4 equipos en 10 minutos"],
+  ]
+  for (const [station, tipo, estado, horas, seud, motivo] of cuarentena) {
+    const id = buscar(station, tipo)
+    if (!id) continue
+    const idDemo = `R-DEMO-${seud.slice(5, 7).toUpperCase()}`
+    const previo = decididos.get(idDemo)
+    if (previo) {
+      db.reportes.push(previo)
+      continue
+    }
+    db.reportes.push({
+      id: idDemo,
+      station,
+      equipmentId: id,
+      estado,
+      ts: now - horas * HORA,
+      seudonimo: seud,
+      verificado: false,
+      evidencias: [],
+      cuarentena: true,
+      motivoCuarentena: motivo,
+      moderacion: "pendiente",
     })
   }
   return db
