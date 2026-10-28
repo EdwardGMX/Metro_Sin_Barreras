@@ -4,6 +4,7 @@
  * aquí se guardan en el navegador para que el prototipo funcione sin servidor.
  */
 import { equipoPorId, todosLosEquipos, ultimaCaptura } from "../data/accessibility"
+import { estadoOperativo, type Operacion } from "./operacion"
 import type { EstadoEquipo } from "./router"
 
 export type EstadoReportado = "no_funciona" | "con_fallas" | "cerrado" | "funciona"
@@ -56,6 +57,8 @@ export type BaseDatos = {
   reportes: Reporte[]
   evidencias: EvidenciaMeta[]
   bitacora: EventoBitacora[]
+  /** Operación en las estaciones: rondas, verificaciones, órdenes e incidentes (HU-31 a HU-37). */
+  operacion?: Operacion
 }
 
 export const VERSION_AVISO = "AP-2026-10"
@@ -134,10 +137,23 @@ export function estadoComunitario(db: BaseDatos, equipmentId: string, now: numbe
   return { estado: "sin_reportes", personas: 0 }
 }
 
-/** Estado de disponibilidad por equipo (RF-06): captura diaria + estado comunitario. */
+/** Momento del último reporte válido (fuera de cuarentena y no rechazado) de un equipo en las últimas 24 h. */
+function ultimoReporteValido(db: BaseDatos, equipmentId: string, now: number): number {
+  let ts = 0
+  for (const r of db.reportes) if (r.equipmentId === equipmentId && !r.cuarentena && r.moderacion !== "rechazado" && r.ts <= now && now - r.ts < VIGENCIA_CONFIRMADO) ts = Math.max(ts, r.ts)
+  return ts
+}
+
+/**
+ * Estado de disponibilidad por equipo (RF-06). Prioridad: orden de mantenimiento abierta;
+ * después, lo más reciente entre lo que observó el personal del STC (ronda o verificación en
+ * sitio) y la validación comunitaria; al final, la captura diaria del inventario.
+ */
 export function estadoEquipo(db: BaseDatos, equipmentId: string, now: number): { estado: EstadoEquipo; fuente: string } {
   const captura = ultimaCaptura(new Date(now))
   const antigua = now - captura.getTime() > 48 * HORA
+  const personal = estadoOperativo(db, equipmentId, now)
+  if (personal && (personal.orden || personal.ts >= ultimoReporteValido(db, equipmentId, now))) return { estado: personal.estado, fuente: personal.fuente }
   const com = estadoComunitario(db, equipmentId, now)
   if (com.estado === "confirmado") return { estado: "fuera_servicio", fuente: `Fuera de servicio confirmado por ${com.personas} personas` }
   if (com.estado === "incierto") return { estado: "incierto", fuente: "Reporte de falla sin confirmar" }

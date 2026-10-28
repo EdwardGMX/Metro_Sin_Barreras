@@ -20,10 +20,12 @@ import {
   type Resultado,
   type SesionPersonal,
 } from "../../lib/admin"
+import { sembrarOperacion } from "../../lib/operacion"
 import { baseVacia, sembrarDemo, type BaseDatos } from "../../lib/reports"
 import { guardar, leer, borrar } from "../../lib/storage"
 import { Icon } from "../Icon"
 import { Bitacora, Contenidos, Cuentas, Datos, Modelos, ModeracionConsola, Plataforma, Privacidad } from "./Modulos"
+import { Infraestructura, Mantenimiento, MiEstacion, Rondas, Seguridad } from "./Operacion"
 import { MiTablero } from "./Tablero"
 
 export const CLAVE_CONSOLA = "msb.consola.v1"
@@ -37,6 +39,8 @@ export type Ctx = {
   ahora: number
   ejecutar: (fn: (e: EstadoConsola, now: number) => Resultado) => Resultado
   actualizarDb: (fn: (db: BaseDatos, e: EstadoConsola, now: number) => void) => void
+  /** Acción sobre la operación (base de reportes y estado de la consola) con aviso del resultado. */
+  operar: (fn: (db: BaseDatos, e: EstadoConsola, now: number) => Resultado) => Resultado
   ir: (m: ModuloId) => void
 }
 
@@ -47,7 +51,7 @@ function cargarEstado(): EstadoConsola {
 
 export default function AdminApp() {
   const [estado, setEstado] = useState<EstadoConsola>(cargarEstado)
-  const [db, setDb] = useState<BaseDatos>(() => sembrarDemo(leer<BaseDatos>(CLAVE_DB, baseVacia()), Date.now()))
+  const [db, setDb] = useState<BaseDatos>(() => sembrarOperacion(sembrarDemo(leer<BaseDatos>(CLAVE_DB, baseVacia()), Date.now()), Date.now()))
   const [sesion, setSesion] = useState<SesionPersonal | null>(() => leer<SesionPersonal | null>(CLAVE_SESION_PERSONAL, null))
   const [modulo, setModulo] = useState<ModuloId>("inicio")
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
@@ -128,6 +132,22 @@ export default function AdminApp() {
     [db, estado, persistir, tocar],
   )
 
+  const operar = useCallback(
+    (fn: (d: BaseDatos, e: EstadoConsola, now: number) => Resultado): Resultado => {
+      const copiaDb = structuredClone(db)
+      const copia = structuredClone(estado)
+      const now = Date.now()
+      const r = fn(copiaDb, copia, now)
+      setDb(copiaDb)
+      guardar(CLAVE_DB, copiaDb)
+      persistir(copia)
+      setAviso({ ok: r.ok, texto: r.mensaje })
+      tocar()
+      return r
+    },
+    [db, estado, persistir, tocar],
+  )
+
   const visibles = useMemo(() => (cuenta ? modulosVisibles(cuenta, ahora) : []), [cuenta, ahora])
   const ir = (m: ModuloId) => {
     setModulo(m)
@@ -159,6 +179,9 @@ export default function AdminApp() {
   const reiniciarDemo = () => {
     const e = estadoInicial(Date.now())
     persistir(e)
+    const d = sembrarOperacion(sembrarDemo(structuredClone(db), Date.now()), Date.now(), true)
+    setDb(d)
+    guardar(CLAVE_DB, d)
     setSesion(null)
     borrar(CLAVE_SESION_PERSONAL)
     setModulo("inicio")
@@ -189,7 +212,7 @@ export default function AdminApp() {
     )
   }
 
-  const ctx: Ctx = { estado, cuenta, db, ahora, ejecutar, actualizarDb, ir }
+  const ctx: Ctx = { estado, cuenta, db, ahora, ejecutar, actualizarDb, operar, ir }
   const actual = visibles.some((m) => m.id === modulo) ? modulo : "inicio"
   const minutosRestantes = Math.max(0, Math.ceil((sesion!.ultimaActividad + INACTIVIDAD - ahora) / 60_000))
 
@@ -256,6 +279,11 @@ export default function AdminApp() {
             )}
           </div>
           {actual === "inicio" && <MiTablero key={cuenta.id} ctx={ctx} />}
+          {actual === "infraestructura" && <Infraestructura ctx={ctx} />}
+          {actual === "estacion" && <MiEstacion ctx={ctx} />}
+          {actual === "rondas" && <Rondas ctx={ctx} />}
+          {actual === "mantenimiento" && <Mantenimiento ctx={ctx} />}
+          {actual === "seguridad" && <Seguridad ctx={ctx} />}
           {actual === "cuentas" && <Cuentas ctx={ctx} />}
           {actual === "plataforma" && <Plataforma ctx={ctx} />}
           {actual === "datos" && <Datos ctx={ctx} />}
@@ -320,7 +348,8 @@ function LoginPersonal({
   }
 
   const grupos: Array<[string, Cuenta[]]> = [
-    ["Equipo del proyecto", estado.cuentas.filter((c) => c.tipo === "interno" && c.estado === "activa")],
+    ["Personal del STC: operación después de la entrega", estado.cuentas.filter((c) => c.tipo === "stc" && c.estado === "activa")],
+    ["Equipo del proyecto: soporte técnico y gobernanza durante el piloto", estado.cuentas.filter((c) => c.tipo === "interno" && c.estado === "activa")],
     ["Especialistas externos (cuenta temporal)", estado.cuentas.filter((c) => c.tipo === "externo")],
     ["Cliente", estado.cuentas.filter((c) => c.tipo === "cliente")],
     ["Ejemplos de acceso denegado", estado.cuentas.filter((c) => c.estado === "suspendida")],
@@ -433,6 +462,7 @@ function LoginPersonal({
                         <span className="font-extrabold">{c.nombre}</span>
                         <span className="text-xs text-ink-muted">
                           {c.roles.map((r) => ROLES[r].nombre).join(" · ")}
+                          {c.estaciones?.length ? ` · ${c.estaciones.join(", ")}` : ""}
                           {c.vence ? ` · vence ${c.vence}` : ""}
                           {c.estado === "suspendida" ? " · suspendida" : ""}
                         </span>

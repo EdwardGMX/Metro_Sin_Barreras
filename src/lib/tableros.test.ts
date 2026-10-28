@@ -4,17 +4,24 @@
  */
 import { describe, expect, it } from "vitest"
 import { decidirContenido, estadoInicial, recertificar, reintentarEjecucion, ORDEN_ROLES, type Cuenta, type EstadoConsola, type RolId } from "./admin"
+import { sembrarOperacion } from "./operacion"
 import { baseVacia, sembrarDemo } from "./reports"
 import { matrizEjecuciones, muestraRutas, operacionDemo, tableroDe, PREGUNTAS, type Indicador } from "./tableros"
 
 const AHORA = new Date(2026, 9, 28, 9, 0).getTime()
 const base = () => {
   const estado = estadoInicial(AHORA)
-  const db = sembrarDemo(baseVacia(), AHORA)
+  const db = sembrarOperacion(sembrarDemo(baseVacia(), AHORA), AHORA)
   return { estado, db }
 }
 const cuentaDe = (e: EstadoConsola, id: string) => e.cuentas.find((c) => c.id === id) as Cuenta
 const CUENTA_POR_ROL: Record<RolId, string> = {
+  operacion: "C-OPER",
+  jefe_estacion: "C-JE-TAC",
+  personal_estacion: "C-PE-TAC",
+  mantenimiento: "C-MANT",
+  jefe_seguridad: "C-JSEG",
+  personal_seguridad: "C-SEG-TAC",
   plataforma: "C-PEDRO",
   datos: "C-SAID",
   modelos: "C-SAID",
@@ -23,7 +30,7 @@ const CUENTA_POR_ROL: Record<RolId, string> = {
   contenidos: "C-MANUEL",
   supervision: "C-DIANA",
 }
-const tablero = (rol: RolId, e: EstadoConsola, db = sembrarDemo(baseVacia(), AHORA), ahora = AHORA) => tableroDe(rol, { estado: e, db, ahora, cuenta: cuentaDe(e, CUENTA_POR_ROL[rol]) })
+const tablero = (rol: RolId, e: EstadoConsola, db = sembrarOperacion(sembrarDemo(baseVacia(), AHORA), AHORA), ahora = AHORA) => tableroDe(rol, { estado: e, db, ahora, cuenta: cuentaDe(e, CUENTA_POR_ROL[rol]) })
 const kpi = (ks: Indicador[], id: string) => ks.find((k) => k.id === id) as Indicador
 
 describe("Cada rol tiene su propio tablero", () => {

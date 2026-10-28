@@ -190,7 +190,7 @@ function Columnas({ g }: { g: Extract<Grafica, { tipo: "columnas" }> }) {
   const t = useTip()
   const max = redondeoAmable(g.max)
   const ticks = [max, max / 2, 0]
-  const fmt = (v: number) => (max < 1 ? v.toFixed(2) : Math.round(v).toLocaleString("es-MX"))
+  const fmt = (v: number) => (max < 1 ? v.toFixed(2) : Number.isInteger(v) ? v.toLocaleString("es-MX") : v.toFixed(1))
   const n = g.columnas.length
   const mayor = g.columnas.reduce((m, c, i) => (c.valor > g.columnas[m].valor ? i : m), 0)
   return (
@@ -251,35 +251,37 @@ const CELDA_LABEL: Record<EstadoCelda, string> = {
 function Matriz({ g }: { g: Extract<Grafica, { tipo: "matriz" }> }) {
   const t = useTip()
   const n = g.columnas.length
+  const etiqueta = { ...CELDA_LABEL, ...g.leyenda }
+  const todas = g.ejes === "todas"
   const presentes = new Set(g.filas.flatMap((f) => f.celdas.map((c) => c.estado)))
   const resumen = (celdas: Array<{ estado: EstadoCelda }>) =>
-    (Object.keys(CELDA_LABEL) as EstadoCelda[])
+    (Object.keys(etiqueta) as EstadoCelda[])
       .filter((k) => k !== "sin_programa")
       .map((k) => [k, celdas.filter((c) => c.estado === k).length] as const)
       .filter(([, v]) => v > 0)
-      .map(([k, v]) => `${v} ${CELDA_LABEL[k].toLowerCase()}`)
+      .map(([k, v]) => `${v} ${etiqueta[k].toLowerCase()}`)
       .join(", ")
+  const tabla = todas ? (
+    <TablaSimple titulo={g.titulo} columnas={["", ...g.columnas]} filas={g.filas.map((f) => [f.etiqueta, ...f.celdas.map((c) => c.detalle)])} />
+  ) : (
+    <TablaSimple
+      titulo={g.titulo}
+      columnas={["Día", ...g.filas.map((f) => f.etiqueta)]}
+      filas={g.columnas
+        .map((d, i) => [d, ...g.filas.map((f) => (f.celdas[i].estado === "sin_programa" ? "—" : etiqueta[f.celdas[i].estado]))])
+        .filter((fila) => fila.slice(1).some((v) => v !== "—"))
+        .reverse()}
+    />
+  )
   return (
-    <Figura
-      g={g}
-      tabla={
-        <TablaSimple
-          titulo={g.titulo}
-          columnas={["Día", ...g.filas.map((f) => f.etiqueta)]}
-          filas={g.columnas
-            .map((d, i) => [d, ...g.filas.map((f) => (f.celdas[i].estado === "sin_programa" ? "—" : CELDA_LABEL[f.celdas[i].estado]))])
-            .filter((fila) => fila.slice(1).some((v) => v !== "—"))
-            .reverse()}
-        />
-      }
-    >
+    <Figura g={g} tabla={tabla}>
       <ul className="matrix-legend" aria-label="Simbología">
-        {(Object.keys(CELDA_LABEL) as EstadoCelda[])
+        {(Object.keys(etiqueta) as EstadoCelda[])
           .filter((k) => presentes.has(k))
           .map((k) => (
             <li key={k}>
               <span className={`matrix-cell matrix-${k}`} aria-hidden="true" />
-              {CELDA_LABEL[k]}
+              {etiqueta[k]}
             </li>
           ))}
       </ul>
@@ -287,18 +289,26 @@ function Matriz({ g }: { g: Extract<Grafica, { tipo: "matriz" }> }) {
         {g.filas.map((f) => (
           <div key={f.etiqueta}>
             <p className="mb-1 text-sm font-bold">{f.etiqueta}</p>
-            <div className="matrix-strip" role="img" aria-label={`${f.etiqueta}, últimos ${n} días: ${resumen(f.celdas) || "sin ejecuciones"}`}>
+            <div className={`matrix-strip ${todas ? "matrix-strip-tall" : ""}`} role="img" aria-label={`${f.etiqueta}${todas ? "" : `, últimos ${n} días`}: ${resumen(f.celdas) || "sin registros"}`}>
               {f.celdas.map((c, i) => (
-                <span key={i} className={`matrix-cell matrix-${c.estado}`} onPointerMove={(e) => t.desdePuntero(e, CELDA_LABEL[c.estado], `${g.columnas[i]} · ${c.detalle}`)} />
+                <span key={i} className={`matrix-cell matrix-${c.estado}`} onPointerMove={(e) => t.desdePuntero(e, etiqueta[c.estado], `${g.columnas[i]} · ${c.detalle}`)} />
               ))}
             </div>
           </div>
         ))}
-        <div className="matrix-axis" aria-hidden="true">
-          <span>{g.columnas[0]}</span>
-          <span>{g.columnas[Math.floor(n / 2)]}</span>
-          <span>Hoy</span>
-        </div>
+        {todas ? (
+          <div className="matrix-strip matrix-axis-all" aria-hidden="true">
+            {g.columnas.map((c) => (
+              <span key={c}>{c}</span>
+            ))}
+          </div>
+        ) : (
+          <div className="matrix-axis" aria-hidden="true">
+            <span>{g.columnas[0]}</span>
+            <span>{g.columnas[Math.floor(n / 2)]}</span>
+            <span>Hoy</span>
+          </div>
+        )}
         {t.vista}
       </div>
     </Figura>
@@ -516,7 +526,7 @@ export function MiTablero({ ctx }: { ctx: Ctx }) {
 
         <details className="admin-details">
           <summary>Quién tiene acceso a la consola</summary>
-          <p className="mt-3 mb-3 text-sm text-ink-muted">Solo siete roles, pensados para la operación después de la entrega. Una persona puede tener más de un rol si no son incompatibles.</p>
+          <p className="mt-3 mb-3 text-sm text-ink-muted">Trece roles: los de operación son el personal del STC que usa la consola cada día; los de soporte mantienen la plataforma, los datos, el modelo y la privacidad. Una persona puede tener más de un rol si no son incompatibles.</p>
           <div className="table-wrap" tabIndex={0} role="region" aria-label="Roles de la consola">
             <table className="admin-table">
               <caption className="sr-only">Roles de la consola, quién los ocupa en el piloto y después de la entrega</caption>
@@ -528,16 +538,23 @@ export function MiTablero({ ctx }: { ctx: Ctx }) {
                   <th scope="col">Su tablero responde</th>
                 </tr>
               </thead>
-              <tbody>
-                {ORDEN_ROLES.map((r) => (
-                  <tr key={r} className={cuenta.roles.includes(r) ? "bg-brand-soft" : undefined}>
-                    <th scope="row">{ROLES[r].nombre}</th>
-                    <td>{ROLES[r].piloto}</td>
-                    <td>{ROLES[r].operacion}</td>
-                    <td>{PREGUNTAS[r]}</td>
+              {(["operacion", "soporte"] as const).map((grupo) => (
+                <tbody key={grupo}>
+                  <tr>
+                    <th scope="colgroup" colSpan={4} className="bg-surface text-xs font-extrabold uppercase tracking-wide">
+                      {grupo === "operacion" ? "Operación del STC (después de la entrega)" : "Soporte técnico y gobernanza"}
+                    </th>
                   </tr>
-                ))}
-              </tbody>
+                  {ORDEN_ROLES.filter((r) => ROLES[r].grupo === grupo).map((r) => (
+                    <tr key={r} className={cuenta.roles.includes(r) ? "bg-brand-soft" : undefined}>
+                      <th scope="row">{ROLES[r].nombre}</th>
+                      <td>{ROLES[r].piloto}</td>
+                      <td>{ROLES[r].operacion}</td>
+                      <td>{PREGUNTAS[r]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              ))}
             </table>
           </div>
           <p className="mt-3 text-xs text-ink-muted">

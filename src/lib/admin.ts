@@ -17,7 +17,20 @@ import { PERFIL_HORARIO } from "../data/saturation"
 /* Roles y permisos                                                    */
 /* ------------------------------------------------------------------ */
 
-export type RolId = "plataforma" | "datos" | "modelos" | "moderacion" | "gobernanza" | "contenidos" | "supervision"
+export type RolId =
+  | "operacion"
+  | "jefe_estacion"
+  | "personal_estacion"
+  | "mantenimiento"
+  | "jefe_seguridad"
+  | "personal_seguridad"
+  | "moderacion"
+  | "supervision"
+  | "plataforma"
+  | "datos"
+  | "modelos"
+  | "gobernanza"
+  | "contenidos"
 
 export type Permiso =
   | "cuentas.ver"
@@ -40,6 +53,18 @@ export type Permiso =
   | "contenidos.aprobar"
   | "bitacora.ver"
   | "indicadores.ver"
+  | "infra.ver"
+  | "rondas.programar"
+  | "rondas.registrar"
+  | "estacion.ver"
+  | "reportes.verificar"
+  | "ordenes.ver"
+  | "ordenes.crear"
+  | "ordenes.atender"
+  | "incidentes.ver"
+  | "incidentes.asignar"
+  | "incidentes.atender"
+  | "seguridad.ver"
 
 export const PERMISO_LABEL: Record<Permiso, string> = {
   "cuentas.ver": "Consultar las cuentas del personal y sus roles",
@@ -62,12 +87,26 @@ export const PERMISO_LABEL: Record<Permiso, string> = {
   "contenidos.aprobar": "Aprobar y publicar el contenido",
   "bitacora.ver": "Consultar y exportar la bitácora de auditoría",
   "indicadores.ver": "Ver el tablero de indicadores agregados del servicio",
+  "infra.ver": "Ver el estado de la infraestructura accesible de toda la red",
+  "rondas.programar": "Programar las rondas de revisión y definir quién las da",
+  "rondas.registrar": "Registrar las rondas de revisión de los equipos",
+  "estacion.ver": "Ver los equipos, reportes y solicitudes de apoyo de su estación",
+  "reportes.verificar": "Verificar en sitio los reportes ciudadanos",
+  "ordenes.ver": "Ver las órdenes de mantenimiento",
+  "ordenes.crear": "Enviar una falla a mantenimiento",
+  "ordenes.atender": "Tomar y cerrar órdenes de mantenimiento",
+  "incidentes.ver": "Ver los incidentes y solicitudes de apoyo",
+  "incidentes.asignar": "Asignar incidentes y solicitudes de apoyo a una persona",
+  "incidentes.atender": "Atender los incidentes y apoyos que tiene asignados",
+  "seguridad.ver": "Ver el panel de seguridad y apoyo",
 }
 
 export type Rol = {
   id: RolId
   nombre: string
   descripcion: string
+  /** «operacion»: personal del STC que opera el servicio; «soporte»: área de TI, datos y gobernanza. */
+  grupo: "operacion" | "soporte"
   /** Quién ocupa el rol durante el piloto y quién después de la entrega. */
   piloto: string
   operacion: string
@@ -76,8 +115,69 @@ export type Rol = {
 }
 
 export const ROLES: Record<RolId, Rol> = {
+  operacion: {
+    id: "operacion",
+    nombre: "Administración de la operación",
+    grupo: "operacion",
+    descripcion: "Ve el estado de la infraestructura accesible en toda la red, programa las rondas de revisión, define quién las da y vigila que se cumplan.",
+    piloto: "Coordinación de estaciones del STC (estaciones del piloto)",
+    operacion: "Gerencia de estaciones del STC",
+    permisos: ["infra.ver", "rondas.programar", "ordenes.ver"],
+    noPuede: ["Ver reportes individuales, fotos o seudónimos", "Cerrar órdenes de mantenimiento", "Administrar cuentas (lo hace el área de TI)"],
+  },
+  jefe_estacion: {
+    id: "jefe_estacion",
+    nombre: "Jefe(a) de estación",
+    grupo: "operacion",
+    descripcion: "Responde por su estación: ve sus equipos, los reportes ciudadanos y las solicitudes de apoyo, da o asigna las rondas, envía las fallas a mantenimiento y asigna los apoyos.",
+    piloto: "Jefes de estación de las cinco estaciones del piloto",
+    operacion: "Jefe(a) de cada estación",
+    permisos: ["estacion.ver", "rondas.registrar", "rondas.programar", "reportes.verificar", "ordenes.ver", "ordenes.crear", "incidentes.ver", "incidentes.asignar", "incidentes.atender"],
+    noPuede: ["Ver otras estaciones", "Cerrar órdenes de mantenimiento", "Ver fotos o seudónimos de quien reporta"],
+  },
+  personal_estacion: {
+    id: "personal_estacion",
+    nombre: "Personal de estación",
+    grupo: "operacion",
+    descripcion: "Da las rondas que tiene asignadas, verifica en sitio los reportes ciudadanos y atiende las solicitudes de apoyo de su estación.",
+    piloto: "Personal de las estaciones del piloto",
+    operacion: "Personal de cada estación",
+    permisos: ["estacion.ver", "rondas.registrar", "reportes.verificar", "incidentes.ver", "incidentes.atender"],
+    noPuede: ["Cambiar el programa de rondas", "Asignar incidentes a otras personas", "Ver otras estaciones o datos de quien reporta"],
+  },
+  mantenimiento: {
+    id: "mantenimiento",
+    nombre: "Mantenimiento electromecánico",
+    grupo: "operacion",
+    descripcion: "Recibe las órdenes de trabajo de los equipos con falla, las atiende por prioridad y registra la reparación.",
+    piloto: "Supervisión de mantenimiento de las líneas del piloto",
+    operacion: "Gerencia de mantenimiento electromecánico del STC",
+    permisos: ["ordenes.ver", "ordenes.atender"],
+    noPuede: ["Confirmar en sitio su propia reparación (lo hace el personal de la estación)", "Ver reportes individuales o datos de personas"],
+  },
+  jefe_seguridad: {
+    id: "jefe_seguridad",
+    nombre: "Jefe(a) de seguridad",
+    grupo: "operacion",
+    descripcion: "Coordina la respuesta a incidentes y a solicitudes de apoyo en la red, asigna al personal de seguridad y anticipa dónde se necesitará por la saturación.",
+    piloto: "Coordinación de seguridad de las estaciones del piloto",
+    operacion: "Gerencia de Seguridad Institucional del STC",
+    permisos: ["seguridad.ver", "incidentes.ver", "incidentes.asignar"],
+    noPuede: ["Ver fotos o seudónimos", "Cambiar el estado de los equipos"],
+  },
+  personal_seguridad: {
+    id: "personal_seguridad",
+    nombre: "Personal de seguridad",
+    grupo: "operacion",
+    descripcion: "Atiende los incidentes y acompañamientos que le asignan en su estación.",
+    piloto: "Policía auxiliar de las estaciones del piloto",
+    operacion: "Policía auxiliar y vigilancia de cada estación",
+    permisos: ["seguridad.ver", "incidentes.ver", "incidentes.atender"],
+    noPuede: ["Ver incidentes de otras estaciones", "Asignar incidentes"],
+  },
   plataforma: {
     id: "plataforma",
+    grupo: "soporte",
     nombre: "Administración de la plataforma",
     descripcion: "Mantiene la infraestructura y las cuentas del personal.",
     piloto: "Arquitecto Cloud / MLOps",
@@ -87,6 +187,7 @@ export const ROLES: Record<RolId, Rol> = {
   },
   datos: {
     id: "datos",
+    grupo: "soporte",
     nombre: "Ingeniería de datos",
     descripcion: "Opera la ingesta, las capturas del inventario y la calidad de los datos.",
     piloto: "Ingeniero de Datos",
@@ -96,6 +197,7 @@ export const ROLES: Record<RolId, Rol> = {
   },
   modelos: {
     id: "modelos",
+    grupo: "soporte",
     nombre: "Ciencia de datos e IA",
     descripcion: "Evalúa, publica y revierte el modelo de saturación y el perfil horario.",
     piloto: "Especialista en IA / ML",
@@ -105,8 +207,9 @@ export const ROLES: Record<RolId, Rol> = {
   },
   moderacion: {
     id: "moderacion",
-    nombre: "Moderación de reportes",
-    descripcion: "Revisa los reportes en cuarentena y sus fotos.",
+    grupo: "operacion",
+    nombre: "Revisión de reportes",
+    descripcion: "Revisa en el centro de atención los reportes ciudadanos en cuarentena y sus fotos; los que pasan se verifican en sitio en la estación.",
     piloto: "Ingeniera de QA / UAT",
     operacion: "Personal de atención a usuarios del STC",
     permisos: ["moderacion.ver", "moderacion.decidir", "evidencias.ver"],
@@ -114,6 +217,7 @@ export const ROLES: Record<RolId, Rol> = {
   },
   gobernanza: {
     id: "gobernanza",
+    grupo: "soporte",
     nombre: "Gobernanza y protección de datos",
     descripcion: "Vigila la LFPDPPP: ARCO, consentimientos, retención, accesos y auditoría.",
     piloto: "Oficial de Gobernanza de Datos",
@@ -132,6 +236,7 @@ export const ROLES: Record<RolId, Rol> = {
   },
   contenidos: {
     id: "contenidos",
+    grupo: "soporte",
     nombre: "Accesibilidad y contenidos",
     descripcion: "Redacta el contenido de emergencia y los textos con lenguaje inclusivo.",
     piloto: "Desarrollador Frontend / UX",
@@ -141,6 +246,7 @@ export const ROLES: Record<RolId, Rol> = {
   },
   supervision: {
     id: "supervision",
+    grupo: "operacion",
     nombre: "Supervisión del servicio",
     descripcion: "Consulta indicadores agregados, sin datos personales.",
     piloto: "Project Manager / Product Owner",
@@ -150,7 +256,21 @@ export const ROLES: Record<RolId, Rol> = {
   },
 }
 
-export const ORDEN_ROLES: RolId[] = ["plataforma", "datos", "modelos", "moderacion", "gobernanza", "contenidos", "supervision"]
+export const ORDEN_ROLES: RolId[] = [
+  "operacion",
+  "jefe_estacion",
+  "personal_estacion",
+  "moderacion",
+  "mantenimiento",
+  "jefe_seguridad",
+  "personal_seguridad",
+  "supervision",
+  "plataforma",
+  "datos",
+  "modelos",
+  "gobernanza",
+  "contenidos",
+]
 
 /** Acciones finales que una cuenta externa nunca ejecuta: solo consulta y propone (RN8). */
 export const ACCIONES_FINALES: Permiso[] = [
@@ -171,12 +291,34 @@ export const ROLES_INCOMPATIBLES: Array<[RolId, RolId, string]> = [
   ["plataforma", "moderacion", "quien administra la plataforma no debe ver las fotos de los reportes"],
   ["gobernanza", "moderacion", "quien audita la moderación no puede moderar"],
   ["gobernanza", "contenidos", "quien aprueba el contenido no puede proponerlo"],
+  ["mantenimiento", "personal_estacion", "quien repara un equipo no confirma en sitio su propia reparación"],
+  ["mantenimiento", "jefe_estacion", "quien repara un equipo no confirma en sitio su propia reparación"],
 ]
 
-export type ModuloId = "inicio" | "cuentas" | "plataforma" | "datos" | "modelos" | "moderacion" | "privacidad" | "contenidos" | "bitacora"
+export type ModuloId =
+  | "inicio"
+  | "infraestructura"
+  | "estacion"
+  | "rondas"
+  | "mantenimiento"
+  | "seguridad"
+  | "cuentas"
+  | "plataforma"
+  | "datos"
+  | "modelos"
+  | "moderacion"
+  | "privacidad"
+  | "contenidos"
+  | "bitacora"
 
-export const MODULOS: Array<{ id: ModuloId; nombre: string; requiere?: Permiso }> = [
+/** Un módulo se muestra si la cuenta tiene al menos uno de los permisos que requiere. */
+export const MODULOS: Array<{ id: ModuloId; nombre: string; requiere?: Permiso | Permiso[] }> = [
   { id: "inicio", nombre: "Mi tablero" },
+  { id: "infraestructura", nombre: "Infraestructura", requiere: "infra.ver" },
+  { id: "estacion", nombre: "Mi estación", requiere: "estacion.ver" },
+  { id: "rondas", nombre: "Rondas de revisión", requiere: ["rondas.registrar", "rondas.programar"] },
+  { id: "mantenimiento", nombre: "Mantenimiento", requiere: ["ordenes.atender", "infra.ver"] },
+  { id: "seguridad", nombre: "Seguridad y apoyo", requiere: "seguridad.ver" },
   { id: "cuentas", nombre: "Cuentas y roles", requiere: "cuentas.ver" },
   { id: "plataforma", nombre: "Plataforma", requiere: "plataforma.ver" },
   { id: "datos", nombre: "Datos", requiere: "datos.ver" },
@@ -201,8 +343,11 @@ export const SESION_MAXIMA = 8 * HORA
 /** Una cuenta sin acceso en este plazo se suspende y requiere recertificación. */
 export const SUSPENSION_POR_INACTIVIDAD = 30 * DIA
 
-export type TipoCuenta = "interno" | "externo" | "cliente"
-export const TIPO_LABEL: Record<TipoCuenta, string> = { interno: "Equipo del proyecto", externo: "Especialista externo", cliente: "Cliente (STC)" }
+export type TipoCuenta = "stc" | "interno" | "externo" | "cliente"
+export const TIPO_LABEL: Record<TipoCuenta, string> = { stc: "Personal del STC", interno: "Equipo del proyecto", externo: "Especialista externo", cliente: "Cliente (STC)" }
+
+/** Roles que trabajan en una estación concreta: su cuenta debe indicar cuál. */
+export const ROLES_DE_ESTACION: RolId[] = ["jefe_estacion", "personal_estacion", "personal_seguridad"]
 
 export type Cuenta = {
   id: string
@@ -215,6 +360,8 @@ export type Cuenta = {
   motivoSuspension?: string
   /** Fecha (ISO, AAAA-MM-DD) en que vence una cuenta externa. */
   vence?: string
+  /** Estaciones que puede ver (roles de estación). Sin valor: toda la red. */
+  estaciones?: string[]
   alta: number
   ultimoAcceso?: number
   creadaPor: string
@@ -351,7 +498,12 @@ export function puede(c: Cuenta | undefined, p: Permiso, now: number): boolean {
 export function modulosVisibles(c: Cuenta | undefined, now: number) {
   const permisos = permisosDe(c, now)
   if (permisos.size === 0) return []
-  return MODULOS.filter((m) => !m.requiere || permisos.has(m.requiere))
+  return MODULOS.filter((m) => !m.requiere || (Array.isArray(m.requiere) ? m.requiere.some((p) => permisos.has(p)) : permisos.has(m.requiere)))
+}
+
+/** ¿La cuenta puede ver esta estación? Las cuentas sin estaciones asignadas ven toda la red. */
+export function alcanzaEstacion(c: Cuenta, station: string): boolean {
+  return !c.estaciones || c.estaciones.length === 0 || c.estaciones.includes(station)
 }
 
 export function rolesTexto(c: Cuenta): string {
@@ -366,14 +518,14 @@ export function auditar(e: EstadoConsola, evento: Omit<EventoAuditoria, "id" | "
   e.auditoria.unshift({ id: `AU-${now.toString(36).toUpperCase()}-${e.auditoria.length}`, ts: now, ...evento })
 }
 
-function actor(c: Cuenta): { actor: string; rol: string } {
+export function actor(c: Cuenta): { actor: string; rol: string } {
   return { actor: `${c.nombre} <${c.correo}>`, rol: c.roles.map((r) => ROLES[r].nombre).join(", ") }
 }
 
 export type Resultado = { ok: true; mensaje: string } | { ok: false; codigo: 400 | 401 | 403 | 409; mensaje: string }
 
 /** Verifica el permiso, registra la negación en la bitácora y devuelve 403 (RNF-06). */
-function exigir(e: EstadoConsola, c: Cuenta, p: Permiso, objeto: string, now: number): Resultado | null {
+export function exigir(e: EstadoConsola, c: Cuenta, p: Permiso, objeto: string, now: number): Resultado | null {
   if (puede(c, p, now)) return null
   const externa = c.tipo === "externo" && ACCIONES_FINALES.includes(p) && c.roles.some((r) => ROLES[r].permisos.includes(p))
   const mensaje = externa
@@ -417,7 +569,7 @@ export function sesionValida(s: SesionPersonal | null, now: number): boolean {
 /* Cuentas: alta, roles, suspensión (HU-23)                            */
 /* ------------------------------------------------------------------ */
 
-export type DatosCuenta = { nombre: string; correo: string; puesto: string; roles: RolId[]; tipo: TipoCuenta; vence?: string }
+export type DatosCuenta = { nombre: string; correo: string; puesto: string; roles: RolId[]; tipo: TipoCuenta; vence?: string; estaciones?: string[] }
 
 export function validarCuenta(d: DatosCuenta, existentes: Cuenta[], idEditando: string | null, now: number): string[] {
   const errores: string[] = []
@@ -428,6 +580,7 @@ export function validarCuenta(d: DatosCuenta, existentes: Cuenta[], idEditando: 
   for (const [a, b, razon] of ROLES_INCOMPATIBLES) {
     if (d.roles.includes(a) && d.roles.includes(b)) errores.push(`No se pueden combinar «${ROLES[a].nombre}» y «${ROLES[b].nombre}»: ${razon}.`)
   }
+  if (d.roles.some((r) => ROLES_DE_ESTACION.includes(r)) && !(d.estaciones && d.estaciones.length)) errores.push("Indica la estación de la persona: los roles de estación solo ven la suya.")
   if (d.tipo === "externo") {
     if (!d.vence) errores.push("Las cuentas externas requieren fecha de vencimiento (fin del contrato).")
     else if (d.vence < hoyIso(now)) errores.push("La fecha de vencimiento ya pasó.")
@@ -764,6 +917,15 @@ const f1Lineas = (base: number): Record<string, number> => {
 export function estadoInicial(now: number): EstadoConsola {
   const venceContratos = "2026-12-06"
   const cuentas: Cuenta[] = [
+    // Personal del STC que opera el servicio después de la entrega (nombres ficticios de demostración).
+    cuenta("C-OPER", "Rocío Salinas Ortega", "rocio.salinas", "Coordinadora de estaciones (administración de la operación)", ["operacion"], "stc", now),
+    cuenta("C-JE-TAC", "Arturo Lemus Pineda", "arturo.lemus", "Jefe de estación · Tacubaya", ["jefe_estacion"], "stc", now, { estaciones: ["Tacubaya"] }),
+    cuenta("C-PE-TAC", "Jorge Aranda Vela", "jorge.aranda", "Personal de estación · Tacubaya", ["personal_estacion"], "stc", now, { estaciones: ["Tacubaya"] }),
+    cuenta("C-JE-PAN", "Mónica Ruiz Cabrera", "monica.ruiz", "Jefa de estación · Pantitlán", ["jefe_estacion"], "stc", now, { estaciones: ["Pantitlán"] }),
+    cuenta("C-MANT", "Alejandra Torres Luna", "alejandra.torres", "Supervisora de mantenimiento electromecánico", ["mantenimiento"], "stc", now),
+    cuenta("C-JSEG", "Ernesto Villa Paredes", "ernesto.villa", "Jefe de seguridad de las estaciones del piloto", ["jefe_seguridad"], "stc", now),
+    cuenta("C-SEG-TAC", "Karla Jiménez Soto", "karla.jimenez", "Policía auxiliar · Tacubaya", ["personal_seguridad"], "stc", now, { estaciones: ["Tacubaya"] }),
+    // Equipo del proyecto: soporte técnico y gobernanza durante el piloto.
     cuenta("C-PEDRO", "Pedro Iván Robles Cervantes", "pedro.robles", "Arquitecto Cloud / MLOps", ["plataforma"], "interno", now),
     cuenta("C-SAID", "Said Cariño Sánchez", "said.carino", "Ingeniero de Datos y Especialista en IA / ML", ["datos", "modelos"], "interno", now),
     cuenta("C-BRISA", "Brisa Isabel Garcés Valencia", "brisa.garces", "Ingeniera de QA / UAT", ["moderacion"], "interno", now),

@@ -30,6 +30,7 @@ import {
   PLAZO_ARCO,
   REFERENCIA,
   ROLES,
+  ROLES_DE_ESTACION,
   TIPO_LABEL,
   type Cuenta,
   type RolId,
@@ -312,11 +313,18 @@ function AltaCuenta({ ctx }: { ctx: Ctx }) {
   const [tipo, setTipo] = useState<TipoCuenta>("interno")
   const [vence, setVence] = useState("")
   const [roles, setRoles] = useState<RolId[]>([])
+  const [estacion, setEstacion] = useState("")
+  const deEstacion = roles.some((r) => ROLES_DE_ESTACION.includes(r))
 
   const enviar = (ev: FormEvent) => {
     ev.preventDefault()
     const r = ejecutar((e, now) =>
-      altaCuenta(e, cuenta, { nombre, correo: `${usuario.trim()}@${DOMINIO}`, puesto, roles, tipo, vence: tipo === "externo" ? vence : undefined }, now),
+      altaCuenta(
+        e,
+        cuenta,
+        { nombre, correo: `${usuario.trim()}@${DOMINIO}`, puesto, roles, tipo, vence: tipo === "externo" ? vence : undefined, estaciones: deEstacion && estacion ? [estacion] : undefined },
+        now,
+      ),
     )
     if (r.ok) {
       setNombre("")
@@ -390,6 +398,19 @@ function AltaCuenta({ ctx }: { ctx: Ctx }) {
           </div>
           <p className="mt-2 text-xs text-ink-muted">La consola rechaza combinaciones incompatibles (RN9) y las cuentas externas sin vencimiento.</p>
         </fieldset>
+        {deEstacion && (
+          <div>
+            <label className="field-label" htmlFor="alta-estacion">
+              Estación asignada
+            </label>
+            <select id="alta-estacion" className="field-select" value={estacion} onChange={(e) => setEstacion(e.target.value)}>
+              <option value="">Elige la estación</option>
+              {allStations.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="md:col-span-2">
           <button type="submit" className="primary-button">
             Dar de alta

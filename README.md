@@ -18,7 +18,9 @@ Prototipo de aplicación web progresiva (PWA) que recomienda rutas accesibles en
 | Verificación opcional de Tarjeta Incluyente con consentimiento expreso y revocable; baja de cuenta | RF-19, RL-02, RL-08 |
 | Reportes con opciones predefinidas (sin texto libre), límite de 5 al día y 1 por equipo cada 2 h, validación comunitaria (3 personas en 6 h, o 2 si una está verificada) | RF-16, RF-20, RN5 |
 | Fotos JPEG/WebP verificadas por firma de bytes, reducidas a 1280 px y 1 MB, sin EXIF/GPS, borrado a 90 días y detección de fotos repetidas | RF-21, RN6 |
-| **Consola del personal** (`#/consola`): inicio de sesión institucional con verificación en dos pasos (simulado), siete roles con mínimo privilegio, un tablero con KPIs propio de cada rol, módulos por rol, separación de funciones y bitácora de auditoría | HU-23 a HU-30, RN8, RN9, RNF-06, RNF-24 |
+| **Consola del personal** (`#/consola`): inicio de sesión institucional con verificación en dos pasos (simulado), trece roles con mínimo privilegio, un tablero con KPIs propio de cada rol, módulos por rol, separación de funciones y bitácora de auditoría | HU-23 a HU-30, RN8, RN9, RNF-06, RNF-24 |
+| **Operación en las estaciones**: rondas de revisión a cinco horas del día con su responsable, verificación en sitio de reportes, órdenes de mantenimiento, incidentes y apoyos asignados a una persona; lo que confirma el personal cambia las rutas | HU-31 a HU-37, RN10 |
+| **Pedir apoyo en la estación** (`#apoyo`): la persona usuaria, sin cuenta, pide acompañamiento y ve cuando se asigna, va en camino y se atiende; quien reportó una falla ve si se verificó y si ya se reparó | HU-36 |
 | Botón de emergencia disponible sin conexión (service worker) | RF-15 |
 | Tamaño de texto, alto contraste, lectura en voz alta, lector de pantalla; 0 violaciones de axe (WCAG 2.2 AA) | RF-14, RNF-13, RNF-14 |
 | Aviso de privacidad simplificado | RL-03 |
@@ -27,17 +29,32 @@ En el prototipo la “API” y la “base de datos” se simulan dentro del nave
 
 ## Consola del personal (`#/consola`)
 
-Atiende la observación de la revisión del avance: definir la interfaz de quienes administran la plataforma y qué especialistas deben tener acceso. Se diseñó como si el sistema ya se hubiera entregado: solo tienen cuenta las personas que lo operan, y cada una ve únicamente lo que su función necesita.
+Atiende las observaciones de la revisión del avance: la interfaz de quienes administran la plataforma, qué especialistas deben tener acceso y, después, la vista de las personas que operarán el servicio en el STC (jefe de estación, personal que revisa reportes, mantenimiento, seguridad). Se diseñó como si el sistema ya se hubiera entregado: solo tienen cuenta las personas que lo operan, y cada una ve únicamente lo que su función necesita.
+
+**Operación del STC (después de la entrega)**
+
+| Rol | Quién | Módulos | Qué información tiene |
+|---|---|---|---|
+| Administración de la operación | Gerencia de estaciones | Infraestructura, Rondas, Mantenimiento (lectura) | Estado de los equipos de toda la red, rondas de hoy por estación, quién las da y si las cumple, órdenes y fallas recurrentes |
+| Jefe(a) de estación | Cada estación | Mi estación, Rondas | Equipos de su estación, reportes por verificar, solicitudes de apoyo (las asigna), programa de rondas (decide quién las da), órdenes de su estación |
+| Personal de estación | Cada estación | Mi estación, Rondas | Sus rondas asignadas, reportes por verificar en sitio, apoyos que le asignan |
+| Revisión de reportes | Centro de atención a usuarios | Moderación | Reportes en cuarentena y sus fotos |
+| Mantenimiento electromecánico | Gerencia de mantenimiento | Mantenimiento | Órdenes por prioridad y plazo; las toma y las cierra |
+| Jefe(a) de seguridad | Gerencia de Seguridad Institucional | Seguridad y apoyo | Incidentes y apoyos de la red, tiempos de respuesta, saturación de la próxima hora; asigna a la policía auxiliar |
+| Personal de seguridad | Policía auxiliar de cada estación | Seguridad y apoyo | Lo que tiene asignado en su estación |
+| Supervisión del servicio | Dirección o enlace del STC | Solo su tablero | Indicadores agregados |
+
+Rondas de revisión (RN10): cinco al día por estación, 30 minutos antes de abrir y a las 9:00, 13:00, 17:00 y 21:00, cada una con una persona responsable; a tiempo si se registra dentro de 45 minutos. Una falla encontrada crea la orden de mantenimiento; quien repara no confirma su reparación (RN9). Reglas en `src/lib/operacion.ts`, pruebas en `src/lib/operacion.test.ts`. Las estaciones del piloto son Tacubaya, Pantitlán, Hidalgo, Balderas y Zapata; el personal de demostración es ficticio.
+
+**Soporte técnico y gobernanza** (el equipo durante el piloto; área de TI y especialistas después)
 
 | Rol | En el piloto | Después de la entrega | Módulos |
 |---|---|---|---|
 | Administración de la plataforma | Arquitecto Cloud / MLOps | Área de TI del STC | Cuentas y roles, Plataforma |
 | Ingeniería de datos | Ingeniero de Datos | Persona ingeniera de datos | Datos, Modelos (lectura) |
 | Ciencia de datos e IA | Especialista en IA / ML | Persona científica de datos | Modelos, Datos (lectura) |
-| Moderación de reportes | Ingeniera de QA / UAT | Atención a usuarios del STC | Moderación (único rol que ve fotos) |
 | Gobernanza y protección de datos | Oficial de Gobernanza + especialista externa | Oficial de protección de datos del STC | Privacidad, Contenidos (aprueba), Bitácora, Cuentas (lectura) |
 | Accesibilidad y contenidos | Frontend / UX + especialista externa | Comunicación accesible del STC | Contenidos (propone) |
-| Supervisión del servicio | Project Manager | Dirección o enlace del STC | Solo su tablero de indicadores agregados |
 
 ### Un tablero por rol
 
@@ -45,10 +62,16 @@ Al entrar, cada persona llega a **Mi tablero**, que responde la pregunta de su f
 
 | Rol | Pregunta del tablero | Indicadores | Gráficas |
 |---|---|---|---|
+| Administración de la operación | ¿La infraestructura accesible funciona en toda la red y se revisa a tiempo? | Equipos funcionando, rondas a tiempo hoy y en 7 días, órdenes abiertas, tiempo medio de reparación, fallas recurrentes, reportes sin verificar | Rondas de hoy por estación; equipos funcionando por línea; cumplimiento por responsable |
+| Jefe(a) de estación | ¿Mi estación está accesible ahora y todo se revisó a tiempo? | Equipos funcionando, rondas de hoy, reportes por verificar, apoyos sin asignar y en curso, órdenes de su estación | Rondas de la semana; tiempo desde la última revisión de cada equipo |
+| Personal de estación | ¿Qué me toca revisar y atender ahora? | Siguiente ronda, rondas de hoy, reportes por verificar, apoyos asignados, rondas a tiempo, equipos con falla | Sus rondas de la semana |
+| Mantenimiento electromecánico | ¿Qué equipos reparo primero y cuánto tardamos? | Órdenes abiertas, fuera de plazo, sin tomar, tiempo medio de reparación, reparadas en plazo, fallas recurrentes | Antigüedad de las órdenes; órdenes por tipo de equipo |
+| Jefe(a) de seguridad | ¿Respondemos a tiempo y hay personal donde se necesita? | Abiertos, sin asignar, tiempo para asignar y para atender, personas atrapadas, estaciones con saturación alta | Casos por tipo; afluencia de la próxima hora |
+| Personal de seguridad | ¿A quién debo atender ahora? | Asignaciones activas, la más antigua, atendidas hoy, su tiempo de atención, sin asignar en su estación, saturación | Sus atenciones de la semana |
 | Administración de la plataforma | ¿La plataforma está disponible, protegida y dentro del presupuesto? | Disponibilidad (RNF-08), latencia p95 (RNF-01), errores 5xx, costo del mes (RNF-02), revocaciones por atender, cuentas por vencer o inactivas, inicios de sesión rechazados | Solicitudes diarias a la API |
 | Ingeniería de datos | ¿Los datos llegan completos, a tiempo y bien homologados? | Antigüedad de la captura, fallas sin recuperar, éxito de ejecuciones (RNF-09), homologación (RNF-11), excepciones pendientes, completitud del inventario | Matriz de ejecuciones de 30 días |
 | Ciencia de datos e IA | ¿El modelo publicado sigue siendo confiable y justo en todas las líneas? | F1 macro (RNF-12), margen sobre la referencia y recall de la clase alta (HU-09), brecha entre líneas, deriva PSI, candidatos listos | F1 por línea con umbral; PSI semanal |
-| Moderación de reportes | ¿La cola se atiende a tiempo y lo que pasa a validación es confiable? | Cola, antigüedad del más antiguo, recibidos en 24 h, tasa de rechazo, equipos confirmados fuera de servicio, cuentas de baja confiabilidad | Antigüedad de la cola contra el plazo |
+| Revisión de reportes | ¿La cola se atiende a tiempo y lo que pasa a validación es confiable? | Cola, antigüedad del más antiguo, recibidos en 24 h, tasa de rechazo, equipos confirmados fuera de servicio, cuentas de baja confiabilidad | Antigüedad de la cola contra el plazo |
 | Gobernanza y protección de datos | ¿Cumplimos la LFPDPPP y cada acceso sigue justificado? | ARCO abiertas y la más urgente (art. 31), respondidas en plazo, recertificación del mes (HU-27), eventos negados (RNF-24), fotos vencidas (RD-12), contenido por aprobar (RN9) | Plazo usado de cada ARCO; avance de la recertificación |
 | Accesibilidad y contenidos | ¿Lo que leen las personas es oficial, vigente, claro y accesible? | Fuente oficial, días desde la publicación, estado de la propuesta, términos a evitar (RNF-23), pasos largos, infracciones WCAG (RNF-14, RNF-26) | Palabras por paso, publicado y propuesta |
 | Supervisión del servicio | ¿El servicio cumple su propósito de accesibilidad para las personas usuarias? | Trayectos con y sin ruta accesible, equipos fuera de servicio, disponibilidad, tiempo de cálculo, reportes, confiabilidad del pronóstico, costo | Resultado de 40 trayectos de muestra; estaciones con más reportes |
@@ -101,9 +124,12 @@ src/
   lib/reglas.test.ts      Pruebas automáticas de las reglas
   lib/admin.ts            Consola del personal: roles, permisos, separación de funciones y auditoría (RN8, RN9)
   lib/admin.test.ts       Pruebas del control de acceso de la consola
+  lib/operacion.ts        Rondas, verificación en sitio, órdenes de mantenimiento, incidentes y apoyos (RN10)
+  lib/operacion.test.ts   Pruebas de la operación en las estaciones
   lib/tableros.ts         Indicadores, gráficas y pendientes del tablero de cada rol
   lib/tableros.test.ts    Pruebas de los tableros por rol
-  components/admin/       Consola del personal (inicio de sesión, tablero por rol, módulos)
+  components/admin/       Consola del personal (inicio de sesión, tablero por rol, módulos técnicos y operativos)
+  components/Apoyo.tsx    Pedir apoyo en la estación y ver su avance (app pública)
   components/MetroMap.tsx Mapa interactivo (SVG con zoom, arrastre y selección de estaciones)
   components/             Interfaz (planificador, resultado, reportes, moderación, emergencia, privacidad)
 public/                   Manifiesto PWA, íconos y service worker

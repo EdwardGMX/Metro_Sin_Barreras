@@ -3,6 +3,7 @@ import { equiposDeEstacion } from "./data/accessibility"
 import { formatoHora, franjasValidas } from "./data/saturation"
 import { borrarFotos } from "./lib/evidence"
 import { combinarRestricciones, PERFILES, type PerfilId } from "./lib/profiles"
+import { sembrarOperacion } from "./lib/operacion"
 import { aplicarRetencion, baseVacia, estadoEquipo, sembrarDemo, type BaseDatos } from "./lib/reports"
 import { calcularRuta, sugerirHora, type ConsultaEstado, type ConsultaRuta, type EquipoRuta, type TipoHora } from "./lib/router"
 import { guardar, leer } from "./lib/storage"
@@ -10,6 +11,7 @@ import { EmergencyButton } from "./components/Emergency"
 import { Icon } from "./components/Icon"
 import { MetroMap } from "./components/MetroMap"
 import { isoLocal, parseFecha, ProfileDropdown, StationSearch, TimePicker } from "./components/Planner"
+import { Apoyo } from "./components/Apoyo"
 import { AvisoPrivacidad } from "./components/Privacy"
 import { Reports, type Sesion } from "./components/Reports"
 import { esValida, RouteSummary, TripPanel } from "./components/TripStatus"
@@ -41,10 +43,11 @@ export default function App() {
   const [fontScale, setFontScale] = useState<FontScale>("normal")
   const [highContrast, setHighContrast] = useState(false)
   const [isReading, setIsReading] = useState(false)
-  const [db, setDb] = useState<BaseDatos>(() => sembrarDemo(leer<BaseDatos>(CLAVE_DB, baseVacia()), Date.now()))
+  const [db, setDb] = useState<BaseDatos>(() => sembrarOperacion(sembrarDemo(leer<BaseDatos>(CLAVE_DB, baseVacia()), Date.now()), Date.now()))
   const [sesion, setSesionState] = useState<Sesion | null>(() => leer<Sesion | null>(CLAVE_SESION, null))
   const [consulta, setConsulta] = useState<ConsultaRuta | null>(null)
   const [preseleccion, setPreseleccion] = useState<{ station: string; equipmentId: string; n: number } | null>(null)
+  const [apoyoEn, setApoyoEn] = useState<{ station: string; n: number } | null>(null)
   const [avisoAbierto, setAvisoAbierto] = useState(false)
   const [enLinea, setEnLinea] = useState(() => navigator.onLine)
   const [reloj, setReloj] = useState(() => Date.now())
@@ -244,6 +247,9 @@ export default function App() {
             <a href="#reportar" className="nav-link">
               Reportar
             </a>
+            <a href="#apoyo" className="nav-link">
+              Pedir apoyo
+            </a>
             <button type="button" className="nav-link hidden sm:flex" onClick={() => setAvisoAbierto(true)}>
               Privacidad
             </button>
@@ -304,6 +310,10 @@ export default function App() {
                   setHora(Math.round(sugerencia.salida / 30) * 30)
                 }}
                 onReportar={reportarEquipo}
+                onPedirApoyo={(station) => {
+                  setApoyoEn({ station, n: Date.now() })
+                  window.requestAnimationFrame(() => document.getElementById("apoyo")?.scrollIntoView())
+                }}
                 peticion={peticion}
                 fechaTexto={fechaTexto}
                 futuro={futuro}
@@ -353,6 +363,9 @@ export default function App() {
         <div className="mx-auto max-w-screen-2xl px-4 pb-12 lg:px-8">
           <section className="service-panel">
             <Reports db={db} actualizar={actualizar} sesion={sesion} setSesion={setSesion} preseleccion={preseleccion} onAviso={() => setAvisoAbierto(true)} />
+          </section>
+          <section className="service-panel mt-6">
+            <Apoyo db={db} actualizar={actualizar} enLinea={enLinea} preseleccion={apoyoEn} />
           </section>
 
         </div>

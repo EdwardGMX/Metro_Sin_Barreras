@@ -291,7 +291,7 @@ dialog::backdrop { background: rgba(16, 47, 58, 0.55); }
 }
 
 /* Barras horizontales: etiqueta | barra | valor. Barra de 14 px con extremo redondeado de 4 px. */
-.hbar-row { display: grid; grid-template-columns: minmax(5.5rem, 11rem) minmax(0, 1fr) minmax(4.5rem, auto); align-items: center; column-gap: 0.75rem; border-radius: 0.5rem; outline-offset: 1px; }
+.hbar-row { display: grid; grid-template-columns: 11rem minmax(0, 1fr) 7.5rem; align-items: center; column-gap: 0.75rem; border-radius: 0.5rem; outline-offset: 1px; }
 .hbar-row:not(.hbar-head):hover .hbar-fill, .hbar-row:focus-visible .hbar-fill { filter: brightness(1.12); }
 .hbar-head { height: 1.6rem; }
 .hbar-label { font-size: 0.8125rem; font-weight: 700; overflow-wrap: anywhere; line-height: 1.2; padding: 0.25rem 0; }
@@ -327,6 +327,8 @@ dialog::backdrop { background: rgba(16, 47, 58, 0.55); }
 .matrix-sin_programa { background: var(--chart-track); }
 .matrix-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.75rem; font-weight: 700; }
 .matrix-legend li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.matrix-strip-tall .matrix-cell { height: 1.25rem; }
+.matrix-axis-all span { flex: 1 1 0; text-align: center; font-size: 0.6875rem; color: var(--color-ink-muted); }
 .matrix-axis { display: flex; justify-content: space-between; font-size: 0.6875rem; color: var(--color-ink-muted); }
 
 /* Medidores (plazos) */
@@ -354,5 +356,5 @@ dialog::backdrop { background: rgba(16, 47, 58, 0.55); }
 .parts-swatch { display: inline-block; width: 0.85rem; height: 0.85rem; border-radius: 3px; flex-shrink: 0; }
 
 @media (max-width: 480px) {
-  .hbar-row { grid-template-columns: minmax(4.5rem, 7rem) minmax(0, 1fr) minmax(3.75rem, auto); column-gap: 0.5rem; }
+  .hbar-row { grid-template-columns: 6.5rem minmax(0, 1fr) 5.5rem; column-gap: 0.5rem; }
 }
