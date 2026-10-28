@@ -42,10 +42,10 @@ describe("mínimo privilegio (RN8)", () => {
     expect(puede(pedro, "moderacion.ver", AHORA)).toBe(false)
     expect(puede(pedro, "evidencias.ver", AHORA)).toBe(false)
   })
-  it("Supervisión solo ve indicadores", () => {
+  it("Supervisión solo ve su tablero de indicadores", () => {
     const e = nuevo()
     expect([...permisosDe(c(e, "C-DIANA"), AHORA)]).toEqual(["indicadores.ver"])
-    expect(modulosVisibles(c(e, "C-DIANA"), AHORA).map((m) => m.id)).toEqual(["inicio", "indicadores"])
+    expect(modulosVisibles(c(e, "C-DIANA"), AHORA).map((m) => m.id)).toEqual(["inicio"])
   })
   it("una cuenta externa consulta y propone, pero no ejecuta acciones finales", () => {
     const e = nuevo()

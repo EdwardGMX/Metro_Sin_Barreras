@@ -23,7 +23,8 @@ import {
 import { baseVacia, sembrarDemo, type BaseDatos } from "../../lib/reports"
 import { guardar, leer, borrar } from "../../lib/storage"
 import { Icon } from "../Icon"
-import { Bitacora, Contenidos, Cuentas, Datos, Indicadores, Inicio, Modelos, ModeracionConsola, Plataforma, Privacidad } from "./Modulos"
+import { Bitacora, Contenidos, Cuentas, Datos, Modelos, ModeracionConsola, Plataforma, Privacidad } from "./Modulos"
+import { MiTablero } from "./Tablero"
 
 export const CLAVE_CONSOLA = "msb.consola.v1"
 const CLAVE_SESION_PERSONAL = "msb.consola.sesion"
@@ -254,8 +255,7 @@ export default function AdminApp() {
               </p>
             )}
           </div>
-          {actual === "inicio" && <Inicio ctx={ctx} />}
-          {actual === "indicadores" && <Indicadores ctx={ctx} />}
+          {actual === "inicio" && <MiTablero key={cuenta.id} ctx={ctx} />}
           {actual === "cuentas" && <Cuentas ctx={ctx} />}
           {actual === "plataforma" && <Plataforma ctx={ctx} />}
           {actual === "datos" && <Datos ctx={ctx} />}

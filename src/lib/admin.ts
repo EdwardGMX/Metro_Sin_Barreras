@@ -61,7 +61,7 @@ export const PERMISO_LABEL: Record<Permiso, string> = {
   "contenidos.proponer": "Proponer cambios al contenido",
   "contenidos.aprobar": "Aprobar y publicar el contenido",
   "bitacora.ver": "Consultar y exportar la bitácora de auditoría",
-  "indicadores.ver": "Ver indicadores agregados del servicio",
+  "indicadores.ver": "Ver el tablero de indicadores agregados del servicio",
 }
 
 export type Rol = {
@@ -173,11 +173,10 @@ export const ROLES_INCOMPATIBLES: Array<[RolId, RolId, string]> = [
   ["gobernanza", "contenidos", "quien aprueba el contenido no puede proponerlo"],
 ]
 
-export type ModuloId = "inicio" | "cuentas" | "plataforma" | "datos" | "modelos" | "moderacion" | "privacidad" | "contenidos" | "bitacora" | "indicadores"
+export type ModuloId = "inicio" | "cuentas" | "plataforma" | "datos" | "modelos" | "moderacion" | "privacidad" | "contenidos" | "bitacora"
 
 export const MODULOS: Array<{ id: ModuloId; nombre: string; requiere?: Permiso }> = [
-  { id: "inicio", nombre: "Inicio" },
-  { id: "indicadores", nombre: "Indicadores", requiere: "indicadores.ver" },
+  { id: "inicio", nombre: "Mi tablero" },
   { id: "cuentas", nombre: "Cuentas y roles", requiere: "cuentas.ver" },
   { id: "plataforma", nombre: "Plataforma", requiere: "plataforma.ver" },
   { id: "datos", nombre: "Datos", requiere: "datos.ver" },
@@ -290,6 +289,8 @@ export type ContenidoEmergencia = {
   actualizado: string
   aprobadoPor?: string
   ejemplo: boolean
+  /** Momento de la publicación (para vigilar la vigencia de la fuente). */
+  publicadoTs?: number
 }
 
 export type BorradorContenido = {
@@ -673,7 +674,7 @@ export function decidirContenido(e: EstadoConsola, quien: Cuenta, decision: "apr
     return { ok: true, mensaje: "Propuesta devuelta con observaciones." }
   }
   const fecha = new Date(now).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })
-  e.contenido.publicado = { version: e.contenido.publicado.version + 1, pasos: b.pasos, fuente: b.fuente, actualizado: fecha, aprobadoPor: quien.nombre, ejemplo: false }
+  e.contenido.publicado = { version: e.contenido.publicado.version + 1, pasos: b.pasos, fuente: b.fuente, actualizado: fecha, aprobadoPor: quien.nombre, ejemplo: false, publicadoTs: now }
   e.contenido.borrador = undefined
   auditar(e, { ...actor(quien), accion: "publicación de contenido", objeto: `contenido de emergencia v${e.contenido.publicado.version}`, resultado: "permitido", detalle: `propuesto por ${b.propuestoPor}` }, now)
   return { ok: true, mensaje: `Publicada la versión ${e.contenido.publicado.version}. El botón de emergencia de la app ya la muestra.` }
@@ -823,7 +824,7 @@ export function estadoInicial(now: number): EstadoConsola {
       { id: "consola-00002", servicio: "Consola del personal (IAP)", ts: now - 6 * DIA, estado: "anterior", nota: "Moderación" },
     ],
     contenido: {
-      publicado: CONTENIDO_EJEMPLO,
+      publicado: { ...CONTENIDO_EJEMPLO, publicadoTs: now - 27 * DIA },
       borrador: {
         pasos: PROPUESTA_OFICIAL,
         fuente: "Sistema de Transporte Colectivo (s. f.-a, s. f.-c): Manual para el usuario del Metro y Qué hacer en caso de emergencia médica; consultados el 1 de octubre de 2026.",

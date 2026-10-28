@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { equipoPorId } from "../../data/accessibility"
 import { allStations } from "../../data/metroData"
 import {
@@ -11,7 +11,6 @@ import {
   decidirContenido,
   diasHabiles,
   evaluarPublicacion,
-  permisosDe,
   proponerContenido,
   publicarModelo,
   puede,
@@ -25,25 +24,19 @@ import {
   rolesTexto,
   sugerirEstacion,
   sumaPerfilHorario,
-  ACCIONES_FINALES,
-  DIA,
   DOMINIO,
   F1_MINIMO,
   ORDEN_ROLES,
-  PERMISO_LABEL,
   PLAZO_ARCO,
   REFERENCIA,
   ROLES,
-  ROLES_INCOMPATIBLES,
   TIPO_LABEL,
   type Cuenta,
   type RolId,
   type TipoCuenta,
 } from "../../lib/admin"
 import { borrarFotos } from "../../lib/evidence"
-import { combinarRestricciones } from "../../lib/profiles"
-import { aplicarRetencion, ESTADO_REPORTADO_LABEL, estadoComunitario, estadoEquipo, moderar, VERSION_AVISO } from "../../lib/reports"
-import { calcularRuta } from "../../lib/router"
+import { aplicarRetencion, ESTADO_REPORTADO_LABEL, moderar, VERSION_AVISO } from "../../lib/reports"
 import { Icon } from "../Icon"
 import { Foto } from "../Moderation"
 import type { Ctx } from "./AdminApp"
@@ -58,7 +51,7 @@ const fecha = (ts: number) => new Date(ts).toLocaleDateString("es-MX", { day: "n
 const pct = (n: number) => `${(n * 100).toFixed(1)} %`
 const actorDe = (c: Cuenta) => ({ actor: `${c.nombre} <${c.correo}>`, rol: rolesTexto(c) })
 
-function Encabezado({ eyebrow, titulo, children }: { eyebrow: string; titulo: string; children?: ReactNode }) {
+export function Encabezado({ eyebrow, titulo, children }: { eyebrow: string; titulo: string; children?: ReactNode }) {
   return (
     <div className="mb-6">
       <p className="text-sm font-bold uppercase tracking-widest text-brand">{eyebrow}</p>
@@ -68,7 +61,7 @@ function Encabezado({ eyebrow, titulo, children }: { eyebrow: string; titulo: st
   )
 }
 
-function Tarjeta({ titulo, children, accion }: { titulo: string; children: ReactNode; accion?: ReactNode }) {
+export function Tarjeta({ titulo, children, accion }: { titulo: string; children: ReactNode; accion?: ReactNode }) {
   return (
     <section className="admin-card" aria-label={titulo}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -91,7 +84,7 @@ function Kpi({ etiqueta, valor, nota, tono }: { etiqueta: string; valor: string;
   )
 }
 
-function Estado({ tono, children }: { tono: "ok" | "warn" | "bad" | "neutral"; children: ReactNode }) {
+export function Estado({ tono, children }: { tono: "ok" | "warn" | "bad" | "neutral"; children: ReactNode }) {
   const cls = tono === "ok" ? "status-success" : tono === "warn" ? "status-warning" : tono === "bad" ? "status-danger" : "bg-surface text-ink"
   return (
     <span className={`status-label ${cls}`}>
@@ -112,186 +105,6 @@ function SoloLectura({ texto }: { texto: string }) {
 
 function Demo({ texto }: { texto: string }) {
   return <p className="mb-4 rounded-xl bg-warning-soft px-3 py-2 text-xs font-bold text-warning">{texto}</p>
-}
-
-/* ------------------------------------------------------------------ */
-/* Inicio                                                              */
-/* ------------------------------------------------------------------ */
-
-export function Inicio({ ctx }: { ctx: Ctx }) {
-  const { cuenta, estado, db, ahora, ir } = ctx
-  const permisos = permisosDe(cuenta, ahora)
-  const pendientes: Array<{ texto: string; n: number; modulo: Parameters<Ctx["ir"]>[0] }> = []
-  if (permisos.has("cuentas.gestionar")) pendientes.push({ texto: "Solicitudes de revocación de Gobernanza", n: estado.revocaciones.filter((r) => r.estado === "pendiente").length, modulo: "cuentas" })
-  if (permisos.has("datos.operar")) {
-    pendientes.push({ texto: "Excepciones de homologación por revisar", n: estado.excepciones.filter((x) => x.estado === "pendiente").length, modulo: "datos" })
-    const ultimas = new Map<string, string>()
-    for (const ej of [...estado.ejecuciones].sort((a, b) => b.ts - a.ts)) if (!ultimas.has(ej.trabajo)) ultimas.set(ej.trabajo, ej.resultado)
-    pendientes.push({ texto: "Trabajos programados con falla", n: [...ultimas.values()].filter((r) => r === "falla").length, modulo: "datos" })
-  }
-  if (permisos.has("modelos.publicar")) pendientes.push({ texto: "Modelos candidatos por evaluar", n: estado.modelos.filter((m) => m.estado === "candidato").length, modulo: "modelos" })
-  if (permisos.has("moderacion.decidir")) pendientes.push({ texto: "Reportes en la cola de moderación", n: db.reportes.filter((r) => r.moderacion === "pendiente").length, modulo: "moderacion" })
-  if (permisos.has("privacidad.ver")) pendientes.push({ texto: "Solicitudes ARCO pendientes", n: estado.arco.filter((a) => a.estado === "pendiente").length, modulo: "privacidad" })
-  if (permisos.has("contenidos.aprobar")) pendientes.push({ texto: "Contenido esperando aprobación", n: estado.contenido.borrador?.estado === "en_revision" ? 1 : 0, modulo: "contenidos" })
-  if (permisos.has("contenidos.proponer")) pendientes.push({ texto: "Propuestas devueltas con observaciones", n: estado.contenido.borrador?.estado === "devuelto" ? 1 : 0, modulo: "contenidos" })
-
-  return (
-    <>
-      <Encabezado eyebrow="Inicio" titulo={`Hola, ${cuenta.nombre.split(" ")[0]}`}>
-        Esta consola muestra solo lo que tu función necesita. Las personas usuarias no tienen cuenta aquí: consultan rutas en la app pública sin registrarse.
-      </Encabezado>
-      {cuenta.tipo === "externo" && (
-        <p className="callout callout-warning mt-0 mb-4">
-          <Icon name="clock" size="sm" className="mt-0.5" />
-          Cuenta de especialista externo: vence el {cuenta.vence}. Puedes consultar y proponer, pero las acciones finales (aprobar, publicar, responder, moderar) las ejecuta una persona del equipo.
-        </p>
-      )}
-      <div className="grid gap-5 xl:grid-cols-2">
-        {cuenta.roles.map((r) => {
-          const rol = ROLES[r]
-          return (
-            <Tarjeta key={r} titulo={rol.nombre}>
-              <p className="text-sm text-ink-muted">{rol.descripcion}</p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <div>
-                  <h3 className="text-sm font-extrabold text-success">Puedes</h3>
-                  <ul className="mt-2 space-y-1.5 text-sm">
-                    {rol.permisos
-                      .filter((p) => permisos.has(p))
-                      .map((p) => (
-                        <li key={p} className="flex gap-2">
-                          <Icon name="check" size="sm" className="mt-0.5 text-success" />
-                          {PERMISO_LABEL[p]}
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-danger">No puedes</h3>
-                  <ul className="mt-2 space-y-1.5 text-sm">
-                    {[...rol.noPuede, ...(cuenta.tipo === "externo" ? rol.permisos.filter((p) => ACCIONES_FINALES.includes(p)).map((p) => PERMISO_LABEL[p]) : [])].map((t) => (
-                      <li key={t} className="flex gap-2">
-                        <Icon name="x" size="sm" className="mt-0.5 text-danger" />
-                        {t}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </Tarjeta>
-          )
-        })}
-        {pendientes.length > 0 && (
-          <Tarjeta titulo="Pendientes">
-            <ul className="space-y-2">
-              {pendientes.map((p) => (
-                <li key={p.texto} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-canvas p-3">
-                  <span className="text-sm font-semibold">{p.texto}</span>
-                  <span className="flex items-center gap-3">
-                    <Estado tono={p.n > 0 ? "warn" : "ok"}>{p.n}</Estado>
-                    <button type="button" className="secondary-button min-h-9" onClick={() => ir(p.modulo)}>
-                      Abrir
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Tarjeta>
-        )}
-      </div>
-
-      <div className="mt-5">
-        <Tarjeta titulo="¿Quién tiene acceso a la consola?">
-          <p className="mb-3 text-sm text-ink-muted">
-            Solo siete roles, pensados para la operación después de la entrega. Una persona puede tener más de un rol si no son incompatibles.
-          </p>
-          <div className="table-wrap" tabIndex={0} role="region" aria-label="Tabla con desplazamiento">
-            <table className="admin-table">
-              <caption className="sr-only">Roles de la consola, quién los ocupa en el piloto y después de la entrega</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Rol</th>
-                  <th scope="col">En el piloto</th>
-                  <th scope="col">Después de la entrega</th>
-                  <th scope="col">Permisos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ORDEN_ROLES.map((r) => (
-                  <tr key={r} className={cuenta.roles.includes(r) ? "bg-brand-soft" : undefined}>
-                    <th scope="row">{ROLES[r].nombre}</th>
-                    <td>{ROLES[r].piloto}</td>
-                    <td>{ROLES[r].operacion}</td>
-                    <td>{ROLES[r].permisos.length}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-3 text-xs text-ink-muted">
-            No tienen cuenta: las personas usuarias y acompañantes, el personal de estaciones (usa la app pública), la persona investigadora UX y la intérprete de Lengua de Señas Mexicana (trabajan en el entorno de pruebas). Incompatibles:{" "}
-            {ROLES_INCOMPATIBLES.map(([a, b]) => `${ROLES[a].nombre} con ${ROLES[b].nombre}`).join("; ")}.
-          </p>
-        </Tarjeta>
-      </div>
-    </>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Indicadores (Supervisión)                                           */
-/* ------------------------------------------------------------------ */
-
-export function Indicadores({ ctx }: { ctx: Ctx }) {
-  const { db, estado, ahora } = ctx
-  const muestra = useMemo(() => {
-    const n = allStations.length
-    const fechaMuestra = new Date(ahora)
-    const restr = combinarRestricciones(["silla_ruedas"])
-    const est = (id: string) => estadoEquipo(db, id, ahora)
-    const conteo = { accesible: 0, accesible_con_apoyo: 0, sin_ruta: 0, fuera_de_horario: 0 }
-    const tiempos: number[] = []
-    for (let i = 0; i < 40; i++) {
-      const origen = allStations[(i * 7) % n]
-      const destino = allStations[(i * 13 + 41) % n]
-      if (origen === destino) continue
-      const t0 = performance.now()
-      const r = calcularRuta({ origen, destino, restricciones: restr, fecha: fechaMuestra, hora: 8 * 60, tipoHora: "salir_a" }, est)
-      tiempos.push(performance.now() - t0)
-      conteo[r.estado]++
-    }
-    tiempos.sort((a, b) => a - b)
-    const total = tiempos.length
-    return { conteo, total, p95: tiempos[Math.min(total - 1, Math.floor(total * 0.95))] ?? 0 }
-  }, [db, ahora])
-
-  const reportes24 = db.reportes.filter((r) => ahora - r.ts < DIA && r.ts <= ahora).length
-  const equiposConReporte = [...new Set(db.reportes.map((r) => r.equipmentId))]
-  const comunitarios = equiposConReporte.map((id) => estadoComunitario(db, id, ahora))
-  const confirmados = comunitarios.filter((c) => c.estado === "confirmado").length
-  const inciertos = comunitarios.filter((c) => c.estado === "incierto").length
-  const vigente = estado.modelos.find((m) => m.estado === "vigente")
-
-  return (
-    <>
-      <Encabezado eyebrow="Supervisión del servicio" titulo="Indicadores">
-        Cifras agregadas para dar seguimiento al servicio y al cumplimiento del mandato de accesibilidad. No incluyen datos personales.
-      </Encabezado>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi etiqueta="Rutas accesibles" valor={pct(muestra.conteo.accesible / Math.max(muestra.total, 1))} nota={`Muestra de ${muestra.total} trayectos para silla de ruedas, hoy a las 8:00`} />
-        <Kpi etiqueta="Accesibles con apoyo" valor={pct(muestra.conteo.accesible_con_apoyo / Math.max(muestra.total, 1))} tono="warn" nota="Algún equipo con información incierta" />
-        <Kpi etiqueta="Sin ruta posible" valor={pct(muestra.conteo.sin_ruta / Math.max(muestra.total, 1))} tono="bad" nota="Brecha que corresponde a obra pública" />
-        <Kpi etiqueta="Cálculo de ruta (p95)" valor={`${muestra.p95.toFixed(1)} ms`} tono="ok" nota="Medido en este navegador; meta < 5 s (RNF-01)" />
-        <Kpi etiqueta="Reportes en 24 h" valor={String(reportes24)} nota="Recibidos por la API de reportes" />
-        <Kpi etiqueta="Equipos fuera de servicio" valor={String(confirmados)} tono={confirmados ? "bad" : "ok"} nota={`Confirmados por la comunidad; ${inciertos} inciertos`} />
-        <Kpi etiqueta="Modelo vigente" valor={vigente ? vigente.f1Macro.toFixed(2) : "—"} nota={`F1 macro de ${vigente?.id ?? "—"} (umbral ${F1_MINIMO})`} />
-        <Kpi etiqueta="Costo de nube del mes" valor="USD 0.45" nota="Estimado sin instancia mínima; alerta en USD 15" />
-      </div>
-      <p className="mt-4 text-xs text-ink-muted">
-        La muestra de rutas usa el grafo y el inventario demostrativo del prototipo. En el piloto, estos indicadores se calculan con los registros de la API, sin guardar origen ni destino de personas concretas.
-      </p>
-    </>
-  )
 }
 
 /* ------------------------------------------------------------------ */

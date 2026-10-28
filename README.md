@@ -18,7 +18,7 @@ Prototipo de aplicación web progresiva (PWA) que recomienda rutas accesibles en
 | Verificación opcional de Tarjeta Incluyente con consentimiento expreso y revocable; baja de cuenta | RF-19, RL-02, RL-08 |
 | Reportes con opciones predefinidas (sin texto libre), límite de 5 al día y 1 por equipo cada 2 h, validación comunitaria (3 personas en 6 h, o 2 si una está verificada) | RF-16, RF-20, RN5 |
 | Fotos JPEG/WebP verificadas por firma de bytes, reducidas a 1280 px y 1 MB, sin EXIF/GPS, borrado a 90 días y detección de fotos repetidas | RF-21, RN6 |
-| **Consola del personal** (`#/consola`): inicio de sesión institucional con verificación en dos pasos (simulado), siete roles con mínimo privilegio, módulos por rol, separación de funciones y bitácora de auditoría | HU-23 a HU-30, RN8, RN9, RNF-06, RNF-24 |
+| **Consola del personal** (`#/consola`): inicio de sesión institucional con verificación en dos pasos (simulado), siete roles con mínimo privilegio, un tablero con KPIs propio de cada rol, módulos por rol, separación de funciones y bitácora de auditoría | HU-23 a HU-30, RN8, RN9, RNF-06, RNF-24 |
 | Botón de emergencia disponible sin conexión (service worker) | RF-15 |
 | Tamaño de texto, alto contraste, lectura en voz alta, lector de pantalla; 0 violaciones de axe (WCAG 2.2 AA) | RF-14, RNF-13, RNF-14 |
 | Aviso de privacidad simplificado | RL-03 |
@@ -37,7 +37,23 @@ Atiende la observación de la revisión del avance: definir la interfaz de quien
 | Moderación de reportes | Ingeniera de QA / UAT | Atención a usuarios del STC | Moderación (único rol que ve fotos) |
 | Gobernanza y protección de datos | Oficial de Gobernanza + especialista externa | Oficial de protección de datos del STC | Privacidad, Contenidos (aprueba), Bitácora, Cuentas (lectura) |
 | Accesibilidad y contenidos | Frontend / UX + especialista externa | Comunicación accesible del STC | Contenidos (propone) |
-| Supervisión del servicio | Project Manager | Dirección o enlace del STC | Indicadores agregados |
+| Supervisión del servicio | Project Manager | Dirección o enlace del STC | Solo su tablero de indicadores agregados |
+
+### Un tablero por rol
+
+Al entrar, cada persona llega a **Mi tablero**, que responde la pregunta de su función con indicadores (valor, meta con el requisito que la fija y semáforo con ícono y texto), gráficas con tabla de datos y una lista de lo que debe atender hoy, con acceso directo al módulo. Quien tiene dos roles cambia de tablero con los botones de rol.
+
+| Rol | Pregunta del tablero | Indicadores | Gráficas |
+|---|---|---|---|
+| Administración de la plataforma | ¿La plataforma está disponible, protegida y dentro del presupuesto? | Disponibilidad (RNF-08), latencia p95 (RNF-01), errores 5xx, costo del mes (RNF-02), revocaciones por atender, cuentas por vencer o inactivas, inicios de sesión rechazados | Solicitudes diarias a la API |
+| Ingeniería de datos | ¿Los datos llegan completos, a tiempo y bien homologados? | Antigüedad de la captura, fallas sin recuperar, éxito de ejecuciones (RNF-09), homologación (RNF-11), excepciones pendientes, completitud del inventario | Matriz de ejecuciones de 30 días |
+| Ciencia de datos e IA | ¿El modelo publicado sigue siendo confiable y justo en todas las líneas? | F1 macro (RNF-12), margen sobre la referencia y recall de la clase alta (HU-09), brecha entre líneas, deriva PSI, candidatos listos | F1 por línea con umbral; PSI semanal |
+| Moderación de reportes | ¿La cola se atiende a tiempo y lo que pasa a validación es confiable? | Cola, antigüedad del más antiguo, recibidos en 24 h, tasa de rechazo, equipos confirmados fuera de servicio, cuentas de baja confiabilidad | Antigüedad de la cola contra el plazo |
+| Gobernanza y protección de datos | ¿Cumplimos la LFPDPPP y cada acceso sigue justificado? | ARCO abiertas y la más urgente (art. 31), respondidas en plazo, recertificación del mes (HU-27), eventos negados (RNF-24), fotos vencidas (RD-12), contenido por aprobar (RN9) | Plazo usado de cada ARCO; avance de la recertificación |
+| Accesibilidad y contenidos | ¿Lo que leen las personas es oficial, vigente, claro y accesible? | Fuente oficial, días desde la publicación, estado de la propuesta, términos a evitar (RNF-23), pasos largos, infracciones WCAG (RNF-14, RNF-26) | Palabras por paso, publicado y propuesta |
+| Supervisión del servicio | ¿El servicio cumple su propósito de accesibilidad para las personas usuarias? | Trayectos con y sin ruta accesible, equipos fuera de servicio, disponibilidad, tiempo de cálculo, reportes, confiabilidad del pronóstico, costo | Resultado de 40 trayectos de muestra; estaciones con más reportes |
+
+Los valores marcados como «Demostración» vienen, en producción, de Cloud Monitoring, de la facturación o del pipeline de entrenamiento; en el prototipo se generan con una semilla por día. Los demás se calculan con los datos del prototipo y cambian con lo que se hace en la consola. Cálculo en `src/lib/tableros.ts`, pruebas en `src/lib/tableros.test.ts` y vista en `src/components/admin/Tablero.tsx`.
 
 Reglas: las cuentas externas vencen con su contrato y solo consultan y proponen (RN8); no se combinan roles incompatibles, nadie modifica su propia cuenta y quien propone un contenido no lo aprueba (RN9); la sesión se cierra tras 15 minutos sin actividad; cada acción, incluidos los intentos negados, queda en la bitácora de auditoría. En producción la consola es un servicio aparte en Cloud Run protegido por Identity-Aware Proxy y Cloud Identity (verificación en dos pasos). Las reglas están en `src/lib/admin.ts` y sus pruebas en `src/lib/admin.test.ts`.
 
@@ -85,7 +101,9 @@ src/
   lib/reglas.test.ts      Pruebas automáticas de las reglas
   lib/admin.ts            Consola del personal: roles, permisos, separación de funciones y auditoría (RN8, RN9)
   lib/admin.test.ts       Pruebas del control de acceso de la consola
-  components/admin/       Consola del personal (inicio de sesión, módulos por rol)
+  lib/tableros.ts         Indicadores, gráficas y pendientes del tablero de cada rol
+  lib/tableros.test.ts    Pruebas de los tableros por rol
+  components/admin/       Consola del personal (inicio de sesión, tablero por rol, módulos)
   components/MetroMap.tsx Mapa interactivo (SVG con zoom, arrastre y selección de estaciones)
   components/             Interfaz (planificador, resultado, reportes, moderación, emergencia, privacidad)
 public/                   Manifiesto PWA, íconos y service worker
