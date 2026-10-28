@@ -14,6 +14,7 @@ import {
   type BaseDatos,
   type EstadoReportado,
 } from "../lib/reports"
+import { seguimientoReporte } from "../lib/operacion"
 import { Icon } from "./Icon"
 import { Dialog } from "./ui"
 
@@ -163,6 +164,8 @@ export function Reports({
     const r = db.reportes.find((x) => x.id === id)!
     if (r.moderacion === "rechazado") return { texto: "Rechazado en moderación", tono: "status-danger" }
     if (r.cuarentena) return { texto: "En revisión", tono: "status-warning" }
+    const seg = seguimientoReporte(db, r)
+    if (seg) return { texto: seg.texto, tono: seg.tono === "ok" ? "status-success" : seg.tono === "warn" ? "status-warning" : "status-danger" }
     const com = estadoComunitario(db, r.equipmentId, ahora)
     if (com.estado === "confirmado") return { texto: "Confirmado por la comunidad", tono: "status-danger" }
     if (com.estado === "restablecido") return { texto: "Funciona de nuevo", tono: "status-success" }

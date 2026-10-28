@@ -95,6 +95,7 @@ export function TripPanel({
   sugerencia,
   onUsarSugerencia,
   onReportar,
+  onPedirApoyo,
   peticion,
   fechaTexto,
   futuro,
@@ -103,6 +104,7 @@ export function TripPanel({
   sugerencia: ResultadoRuta | null
   onUsarSugerencia: () => void
   onReportar: (eq: EquipoRuta) => void
+  onPedirApoyo?: (station: string) => void
   peticion: object
   fechaTexto: string
   futuro: boolean
@@ -133,10 +135,20 @@ export function TripPanel({
       ) : (
         <>
           {ruta.estado === "accesible_con_apoyo" && (
-            <p className="callout callout-warning" role="status">
+            <div className="callout callout-warning" role="status">
               <Icon name="alert" size="sm" className="mt-0.5" />
-              Algún equipo de esta ruta tiene información incierta. La ruta es posible, pero conviene pedir apoyo al personal de la estación.
-            </p>
+              <div>
+                Algún equipo de esta ruta tiene información incierta. La ruta es posible, pero conviene pedir apoyo al personal de la estación.
+                {onPedirApoyo && (() => {
+                  const st = ruta.equipos.find((e) => e.estado !== "disponible")?.station
+                  return st ? (
+                    <button type="button" className="mt-2 block font-extrabold underline" onClick={() => onPedirApoyo(st)}>
+                      Pedir apoyo en {st}
+                    </button>
+                  ) : null
+                })()}
+              </div>
+            </div>
           )}
           {futuro && (
             <p className="callout">

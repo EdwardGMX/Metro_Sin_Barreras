@@ -4,6 +4,7 @@
  * aquí se guardan en el navegador para que el prototipo funcione sin servidor.
  */
 import { equipoPorId, todosLosEquipos, ultimaCaptura } from "../data/accessibility"
+import { estadoOperativo, type Operacion } from "./operacion"
 import type { EstadoEquipo } from "./router"
 
 export type EstadoReportado = "no_funciona" | "con_fallas" | "cerrado" | "funciona"
@@ -56,6 +57,8 @@ export type BaseDatos = {
   reportes: Reporte[]
   evidencias: EvidenciaMeta[]
   bitacora: EventoBitacora[]
+  /** Operación en las estaciones: rondas, verificaciones, órdenes e incidentes (HU-31 a HU-37). */
+  operacion?: Operacion
 }
 
 export const VERSION_AVISO = "AP-2026-10"
@@ -134,10 +137,23 @@ export function estadoComunitario(db: BaseDatos, equipmentId: string, now: numbe
   return { estado: "sin_reportes", personas: 0 }
 }
 
-/** Estado de disponibilidad por equipo (RF-06): captura diaria + estado comunitario. */
+/** Momento del último reporte válido (fuera de cuarentena y no rechazado) de un equipo en las últimas 24 h. */
+function ultimoReporteValido(db: BaseDatos, equipmentId: string, now: number): number {
+  let ts = 0
+  for (const r of db.reportes) if (r.equipmentId === equipmentId && !r.cuarentena && r.moderacion !== "rechazado" && r.ts <= now && now - r.ts < VIGENCIA_CONFIRMADO) ts = Math.max(ts, r.ts)
+  return ts
+}
+
+/**
+ * Estado de disponibilidad por equipo (RF-06). Prioridad: orden de mantenimiento abierta;
+ * después, lo más reciente entre lo que observó el personal del STC (ronda o verificación en
+ * sitio) y la validación comunitaria; al final, la captura diaria del inventario.
+ */
 export function estadoEquipo(db: BaseDatos, equipmentId: string, now: number): { estado: EstadoEquipo; fuente: string } {
   const captura = ultimaCaptura(new Date(now))
   const antigua = now - captura.getTime() > 48 * HORA
+  const personal = estadoOperativo(db, equipmentId, now)
+  if (personal && (personal.orden || personal.ts >= ultimoReporteValido(db, equipmentId, now))) return { estado: personal.estado, fuente: personal.fuente }
   const com = estadoComunitario(db, equipmentId, now)
   if (com.estado === "confirmado") return { estado: "fuera_servicio", fuente: `Fuera de servicio confirmado por ${com.personas} personas` }
   if (com.estado === "incierto") return { estado: "incierto", fuente: "Reporte de falla sin confirmar" }
@@ -213,6 +229,8 @@ export function moderar(db: BaseDatos, reporteId: string, decision: "aprobado" |
 /** Reportes de otras personas para que el prototipo muestre la validación comunitaria. */
 export function sembrarDemo(db: BaseDatos, now: number): BaseDatos {
   // Se regeneran en cada carga, relativos a la hora actual, para que siempre haya ejemplos vigentes.
+  // Las decisiones de moderación sobre los ejemplos en cuarentena se conservan entre recargas.
+  const decididos = new Map(db.reportes.filter((r) => r.id.startsWith("R-DEMO-Q") && r.moderacion !== "pendiente").map((r) => [r.id, r]))
   db.reportes = db.reportes.filter((r) => !r.id.startsWith("R-DEMO-"))
   const buscar = (station: string, tipo: string) =>
     todosLosEquipos.find((e) => e.station === station && e.tipo === tipo && e.ubicacion.startsWith("Acceso"))?.id ??
@@ -238,6 +256,34 @@ export function sembrarDemo(db: BaseDatos, now: number): BaseDatos {
       evidencias: [],
       cuarentena: false,
       moderacion: null,
+    })
+  }
+  // Reportes en cuarentena para la demostración del módulo de Moderación (no cuentan para el estado).
+  const cuarentena: Array<[string, string, EstadoReportado, number, string, string]> = [
+    ["Balderas", "Elevador", "no_funciona", 0.4, "demo-q1-7c21a9", "Confiabilidad baja de la cuenta"],
+    ["Zapata", "Elevador", "cerrado", 1.8, "demo-q2-e04b3d", "Cuenta nueva que reportó 4 equipos en 10 minutos"],
+  ]
+  for (const [station, tipo, estado, horas, seud, motivo] of cuarentena) {
+    const id = buscar(station, tipo)
+    if (!id) continue
+    const idDemo = `R-DEMO-${seud.slice(5, 7).toUpperCase()}`
+    const previo = decididos.get(idDemo)
+    if (previo) {
+      db.reportes.push(previo)
+      continue
+    }
+    db.reportes.push({
+      id: idDemo,
+      station,
+      equipmentId: id,
+      estado,
+      ts: now - horas * HORA,
+      seudonimo: seud,
+      verificado: false,
+      evidencias: [],
+      cuarentena: true,
+      motivoCuarentena: motivo,
+      moderacion: "pendiente",
     })
   }
   return db
