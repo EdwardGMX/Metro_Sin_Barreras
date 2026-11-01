@@ -22,14 +22,18 @@ import {
   type SesionPersonal,
 } from "../../lib/admin"
 import { sembrarOperacion } from "../../lib/operacion"
+import { sembrarServicio } from "../../lib/servicio"
 import { baseVacia, sembrarDemo, type BaseDatos } from "../../lib/reports"
 import { guardar, leer, borrar } from "../../lib/storage"
 import { Icon } from "../Icon"
 import { Bitacora, Contenidos, Cuentas, Datos, Modelos, ModeracionConsola, Plataforma, Privacidad } from "./Modulos"
 import { Infraestructura, Mantenimiento, MiEstacion, Rondas, Seguridad } from "./Operacion"
 import { MiTablero } from "./Tablero"
+import { MiJornada } from "../vistas/MiJornada"
+import { MesaAtencion, ModuloTickets } from "../vistas/Tickets"
+import { VistaJefe } from "../vistas/VistaJefe"
 
-export const CLAVE_CONSOLA = "msb.consola.v2"
+export const CLAVE_CONSOLA = "msb.consola.v3"
 const CLAVE_SESION_PERSONAL = "msb.consola.sesion"
 const CLAVE_DB = "msb.db.v1"
 
@@ -45,6 +49,15 @@ export type Ctx = {
   ir: (m: ModuloId) => void
 }
 
+/** Vista de inicio propia de cada perfil operativo; los demás roles llegan a su tablero de indicadores. */
+type Inicio = { nombre: string; vista: "jefe" | "jornada" | "mesa" }
+export function inicioDe(c: Cuenta): Inicio | null {
+  if (c.roles.includes("jefe_estacion")) return { nombre: "Mi estación hoy", vista: "jefe" }
+  if (c.roles.includes("personal_seguridad") || c.roles.includes("personal_estacion")) return { nombre: "Mi jornada", vista: "jornada" }
+  if (c.roles.includes("moderacion") && c.tipo === "stc") return { nombre: "Mesa de atención", vista: "mesa" }
+  return null
+}
+
 function cargarEstado(): EstadoConsola {
   const guardado = leer<EstadoConsola | null>(CLAVE_CONSOLA, null)
   return guardado && Array.isArray(guardado.cuentas) ? guardado : estadoInicial(Date.now())
@@ -52,7 +65,7 @@ function cargarEstado(): EstadoConsola {
 
 export default function AdminApp() {
   const [estado, setEstado] = useState<EstadoConsola>(cargarEstado)
-  const [db, setDb] = useState<BaseDatos>(() => sembrarOperacion(sembrarDemo(leer<BaseDatos>(CLAVE_DB, baseVacia()), Date.now()), Date.now()))
+  const [db, setDb] = useState<BaseDatos>(() => sembrarServicio(sembrarOperacion(sembrarDemo(leer<BaseDatos>(CLAVE_DB, baseVacia()), Date.now()), Date.now()), Date.now()))
   const [sesion, setSesion] = useState<SesionPersonal | null>(() => leer<SesionPersonal | null>(CLAVE_SESION_PERSONAL, null))
   const [modulo, setModulo] = useState<ModuloId>("inicio")
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
@@ -149,7 +162,15 @@ export default function AdminApp() {
     [db, estado, persistir, tocar],
   )
 
-  const visibles = useMemo(() => (cuenta ? modulosVisibles(cuenta, ahora) : []), [cuenta, ahora])
+  const inicio = cuenta ? inicioDe(cuenta) : null
+  const visibles = useMemo(() => {
+    if (!cuenta) return []
+    const base = modulosVisibles(cuenta, ahora)
+    const home = inicioDe(cuenta)
+    if (!home) return base
+    // Su vista propia ocupa «inicio»; los indicadores siguen disponibles en su propio módulo.
+    return base.flatMap((m) => (m.id === "inicio" ? [{ ...m, nombre: home.nombre }, { id: "indicadores" as ModuloId, nombre: "Indicadores" }] : [m]))
+  }, [cuenta, ahora])
   const ir = (m: ModuloId) => {
     setModulo(m)
     setAviso(null)
@@ -180,7 +201,7 @@ export default function AdminApp() {
   const reiniciarDemo = () => {
     const e = estadoInicial(Date.now())
     persistir(e)
-    const d = sembrarOperacion(sembrarDemo(structuredClone(db), Date.now()), Date.now(), true)
+    const d = sembrarServicio(sembrarOperacion(sembrarDemo(structuredClone(db), Date.now()), Date.now(), true), Date.now(), true)
     setDb(d)
     guardar(CLAVE_DB, d)
     setSesion(null)
@@ -279,7 +300,12 @@ export default function AdminApp() {
               </p>
             )}
           </div>
-          {actual === "inicio" && <MiTablero key={cuenta.id} ctx={ctx} />}
+          {actual === "inicio" && inicio?.vista === "jefe" && <VistaJefe ctx={ctx} />}
+          {actual === "inicio" && inicio?.vista === "jornada" && <MiJornada ctx={ctx} />}
+          {actual === "inicio" && inicio?.vista === "mesa" && <MesaAtencion ctx={ctx} />}
+          {actual === "inicio" && !inicio && <MiTablero key={cuenta.id} ctx={ctx} />}
+          {actual === "indicadores" && <MiTablero key={cuenta.id} ctx={ctx} />}
+          {actual === "tickets" && <ModuloTickets ctx={ctx} />}
           {actual === "infraestructura" && <Infraestructura ctx={ctx} />}
           {actual === "estacion" && <MiEstacion ctx={ctx} />}
           {actual === "rondas" && <Rondas ctx={ctx} />}

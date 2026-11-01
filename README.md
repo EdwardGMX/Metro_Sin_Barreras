@@ -25,6 +25,8 @@ Prototipo de aplicación web progresiva (PWA) que recomienda rutas accesibles en
 | Botón de emergencia disponible sin conexión (service worker) | RF-15 |
 | Tamaño de texto, alto contraste, lectura en voz alta, lector de pantalla; 0 violaciones de axe (WCAG 2.2 AA) | RF-14, RNF-13, RNF-14 |
 | Aviso de privacidad simplificado | RL-03 |
+| **Mi cuenta** (`#mi-cuenta`): reportes en curso y solucionados dibujados como un trayecto del Metro, confirmación «¿se resolvió?», reportes de limpieza, seguridad, señalización accesible, atención del personal y aglomeración (solo opciones), Llave CDMX y Tarjeta Incluyente simuladas, quién ve qué de ti y tus estaciones | RF-16, RF-19, RN3, RN5, RN14 |
+| **Vistas por perfil en la consola**: Mi estación hoy (jefe), Mi jornada (policía auxiliar y personal de estación), Mesa de atención (Gerencia de Atención al Usuario) y Tickets para todo el personal | RN8, RN9, RN11 a RN14 |
 
 En el prototipo la “API” y la “base de datos” se simulan dentro del navegador (`src/lib/router.ts` y `src/lib/reports.ts`), con la misma lógica que tendría el servicio en Cloud Run y Firestore.
 
@@ -39,12 +41,12 @@ Los roles siguen las unidades del Estatuto Orgánico del STC (Gaceta Oficial de 
 | Rol | Quién | Módulos | Qué información tiene |
 |---|---|---|---|
 | Coordinación de gerencia de líneas | Una cuenta por Gerencia de Líneas de la Dirección de Transportación (1-3-4-12, 2-5-6-B y 7-8-9-A) | Infraestructura, Rondas, Mantenimiento (lectura) | Solo las estaciones y líneas de su gerencia: estado de los equipos, rondas de hoy, quién las da y si las cumple, órdenes y fallas recurrentes |
-| Jefe(a) de estación | Cada estación | Mi estación, Rondas | Equipos de su estación, de qué gerencias depende, reportes por verificar, solicitudes de apoyo (las asigna; una persona atrapada aparece primero con su protocolo de cinco pasos), programa de rondas (decide quién las da), órdenes de su estación |
-| Personal de estación | Cada estación | Mi estación, Rondas | Sus rondas asignadas, reportes por verificar en sitio, apoyos que le asignan |
-| Revisión de reportes | Gerencia de Atención al Usuario (Dirección de Medios) | Moderación | Reportes en cuarentena y sus fotos |
-| Mantenimiento electromecánico | Subdirección General de Mantenimiento (Instalaciones Fijas) | Mantenimiento | Órdenes por prioridad y plazo; las toma y las cierra |
-| Jefe(a) de seguridad | Gerencia de Seguridad Institucional | Seguridad y apoyo | Incidentes y apoyos de la red, tiempos de respuesta, saturación de la próxima hora; asigna a la policía auxiliar |
-| Personal de seguridad | Policía auxiliar de cada estación | Seguridad y apoyo | Lo que tiene asignado en su estación |
+| Jefe(a) de estación | Cada estación | Mi estación hoy, Mi estación, Rondas, Tickets | Equipos de su estación, de qué gerencias depende, reportes por verificar, solicitudes de apoyo (las asigna; una persona atrapada aparece primero con su protocolo de cinco pasos), programa de rondas (decide quién las da), órdenes de su estación; asigna tareas a su personal de seguridad, estación y limpieza y levanta tickets a otras áreas |
+| Personal de estación | Cada estación | Mi jornada, Mi estación, Rondas, Tickets | Su turno con las tareas del jefe, sus rondas asignadas, reportes por verificar en sitio, apoyos que le asignan |
+| Mesa de atención y reportes | Gerencia de Atención al Usuario (Dirección de Medios) | Mesa de atención, Tickets, Moderación | Reportes ciudadanos agrupados por turnar, tickets de todas las áreas con su plazo, reportes en cuarentena y sus fotos |
+| Mantenimiento electromecánico | Subdirección General de Mantenimiento (Instalaciones Fijas) | Mantenimiento, Tickets | Órdenes por prioridad y plazo; las toma y las cierra; tickets de instalaciones que asigna a su personal técnico |
+| Jefe(a) de seguridad | Gerencia de Seguridad Institucional | Seguridad y apoyo, Tickets | Incidentes y apoyos de la red, tiempos de respuesta, saturación de la próxima hora; asigna a la policía auxiliar y los tickets de seguridad |
+| Personal de seguridad | Policía auxiliar de cada estación | Mi jornada, Seguridad y apoyo, Tickets | Su turno con las tareas del jefe, sus tickets y los apoyos que tiene asignados en su estación |
 | Supervisión del servicio | Dirección o enlace del STC | Solo su tablero | Indicadores agregados |
 
 Rondas de revisión (RN10): cinco al día por estación, 30 minutos antes de abrir y a las 9:00, 13:00, 17:00 y 21:00, cada una con una persona responsable; a tiempo si se registra dentro de 45 minutos. Una falla encontrada crea la orden de mantenimiento; quien repara no confirma su reparación (RN9). Reglas en `src/lib/operacion.ts`, pruebas en `src/lib/operacion.test.ts`. Las estaciones del piloto son Tacubaya, Pantitlán, Hidalgo, Balderas y Zapata; el personal de demostración es ficticio.
@@ -58,6 +60,27 @@ Rondas de revisión (RN10): cinco al día por estación, 30 minutos antes de abr
 | Ciencia de datos e IA | Especialista en IA / ML | Persona científica de datos | Modelos, Datos (lectura) |
 | Gobernanza y protección de datos | Oficial de Gobernanza + especialista externa | Oficial de protección de datos del STC | Privacidad, Contenidos (aprueba), Bitácora, Cuentas (lectura) |
 | Accesibilidad y contenidos | Frontend / UX + especialista externa | Comunicación accesible del STC | Contenidos (propone) |
+
+### Vistas por perfil
+
+Cada perfil operativo entra a una vista pensada para leerse en segundos. El encabezado es una estación sobre la línea del Metro con el color del perfil (Línea 2 azul para la persona usuaria, Línea 7 naranja para el jefe de estación, Línea A morada para la policía auxiliar, Línea 4 para el personal de estación y Línea 8 verde para la Mesa de atención) y una frase que dice si todo está en orden o qué necesita atención. El avance de un reporte, un ticket, las rondas o un turno se dibuja como un trayecto con paradas. El color solo identifica al perfil: el estado siempre lleva ícono y texto. Los indicadores con meta siguen disponibles en el módulo «Indicadores».
+
+| Vista | Quién | Qué responde | De un vistazo | Qué puede hacer |
+|---|---|---|---|---|
+| Mi cuenta (`#mi-cuenta`) | Persona usuaria con Llave CDMX | ¿Qué pasó con lo que reporté? | Tus reportes por etapa, tus estaciones ahora, problemas resueltos con tu ayuda | Seguir cada reporte (recibido, turnado, en atención, solucionado), confirmar si se resolvió, reportar otros problemas, verificar o revocar la Tarjeta Incluyente, guardar estaciones, darse de baja |
+| Mi estación hoy | Jefe(a) de estación | ¿Mi estación está bien y mi equipo sabe qué hacer? | Equipos (íconos con estado), rondas de hoy como trayecto, tareas del equipo por estado | Asignar tareas a cada persona de su equipo, asignar los tickets de estación y limpieza, levantar tickets a otras áreas |
+| Mi jornada | Policía auxiliar y personal de estación | ¿Qué hago ahora y qué sigue? | Lo urgente en grande (un apoyo asignado va primero), el turno como línea con paradas por hora y la marca «Ahora», avance del día | Ir en camino y atender apoyos, empezar y terminar tareas y tickets, levantar tickets |
+| Mesa de atención | Gerencia de Atención al Usuario | ¿Todo está turnado y en plazo? | Tickets en plazo, abiertos por área, resueltos en 7 días | Turnar reportes agrupados al área sugerida (o a otra), asignar, cambiar prioridad, cerrar o reabrir |
+| Tickets | Todo el personal | ¿Qué me toca y qué levanté? | Tablero por estado con el plazo de cada ticket | Levantar tickets; quien encarga un área ve y asigna los de su área |
+
+Reglas de los tickets y las tareas (propuesta del equipo, por validar con el STC; en `src/lib/servicio.ts` y sus pruebas en `src/lib/servicio.test.ts`):
+
+- **RN11.** Cualquier cuenta del personal levanta un ticket a cualquier área, solo en las estaciones a su cargo; la supervisión no. Las personas usuarias no levantan tickets: reportan con opciones predefinidas, la Mesa agrupa los reportes iguales (3 personas o más suben la prioridad) y los turna al área. Un reporte igual a un ticket abierto se suma a él.
+- **RN12.** Asigna la Mesa de atención o quien encarga el área (jefatura de estación para estación y limpieza, Gerencia de Seguridad Institucional, Mantenimiento, Sistemas), y solo a personal de esa área. Quien resolvió un ticket no lo cierra (RN9). Plazos: alta 4 h, media 24 h, baja 72 h.
+- **RN13.** El jefe de estación asigna tareas solo a su personal (seguridad, estación y limpieza); a Mantenimiento u otras áreas les levanta un ticket.
+- **RN14.** La persona que reportó confirma si se resolvió; si dice que sigue, el ticket se reabre y vuelve a quien lo atendía. El personal nunca ve su nombre ni su seudónimo, solo cuántas personas reportaron.
+
+Para recorrerlas: en la app pública, «Mi cuenta» con la cuenta de prueba 2 (Ana Lucía, con historial y Tarjeta Incluyente); en la consola, Arturo Lemus (jefe de Tacubaya), Karla Jiménez (policía auxiliar), Jorge Aranda (personal de estación), Patricia Olvera (Mesa de atención) y Alejandra Torres (Mantenimiento, módulo Tickets). El personal de demostración está en el turno en curso (matutino de 6:00 a 14:00 o vespertino de 14:00 a 22:00).
 
 ### Un tablero por rol
 
@@ -74,7 +97,7 @@ Al entrar, cada persona llega a **Mi tablero**, que responde la pregunta de su f
 | Administración de la plataforma | ¿La plataforma está disponible, protegida y dentro del presupuesto? | Disponibilidad (RNF-08), latencia p95 (RNF-01), errores 5xx, costo del mes (RNF-02), revocaciones por atender, cuentas por vencer o inactivas, inicios de sesión rechazados | Solicitudes diarias a la API |
 | Ingeniería de datos | ¿Los datos llegan completos, a tiempo y bien homologados? | Antigüedad de la captura, fallas sin recuperar, éxito de ejecuciones (RNF-09), homologación (RNF-11), excepciones pendientes, completitud del inventario | Matriz de ejecuciones de 30 días |
 | Ciencia de datos e IA | ¿El modelo publicado sigue siendo confiable y justo en todas las líneas? | F1 macro (RNF-12), margen sobre la referencia y recall de la clase alta (HU-09), brecha entre líneas, deriva PSI, candidatos listos | F1 por línea con umbral; PSI semanal |
-| Revisión de reportes | ¿La cola se atiende a tiempo y lo que pasa a validación es confiable? | Cola, antigüedad del más antiguo, recibidos en 24 h, tasa de rechazo, equipos confirmados fuera de servicio, cuentas de baja confiabilidad | Antigüedad de la cola contra el plazo |
+| Mesa de atención y reportes | ¿La cola se atiende a tiempo y lo que pasa a validación es confiable? | Cola, antigüedad del más antiguo, recibidos en 24 h, tasa de rechazo, equipos confirmados fuera de servicio, cuentas de baja confiabilidad | Antigüedad de la cola contra el plazo |
 | Gobernanza y protección de datos | ¿Cumplimos la LFPDPPP y cada acceso sigue justificado? | ARCO abiertas y la más urgente (art. 31), respondidas en plazo, recertificación del mes (HU-27), eventos negados (RNF-24), fotos vencidas (RD-12), contenido por aprobar (RN9) | Plazo usado de cada ARCO; avance de la recertificación |
 | Accesibilidad y contenidos | ¿Lo que leen las personas es oficial, vigente, claro y accesible? | Fuente oficial, días desde la publicación, estado de la propuesta, términos a evitar (RNF-23), pasos largos, infracciones WCAG (RNF-14, RNF-26) | Palabras por paso, publicado y propuesta |
 | Supervisión del servicio | ¿El servicio cumple su propósito de accesibilidad para las personas usuarias? | Trayectos con y sin ruta accesible, equipos fuera de servicio, disponibilidad, tiempo de cálculo, reportes, confiabilidad del pronóstico, costo | Resultado de 40 trayectos de muestra; estaciones con más reportes |
@@ -131,7 +154,10 @@ src/
   lib/operacion.test.ts   Pruebas de la operación en las estaciones
   lib/tableros.ts         Indicadores, gráficas y pendientes del tablero de cada rol
   lib/tableros.test.ts    Pruebas de los tableros por rol
+  lib/servicio.ts         Reportes de servicio, tickets entre áreas, tareas del jefe y jornada (RN11 a RN14)
+  lib/servicio.test.ts    Pruebas de tickets, tareas y confirmación de la persona usuaria
   components/admin/       Consola del personal (inicio de sesión, tablero por rol, módulos técnicos y operativos)
+  components/vistas/      Vistas por perfil: Mi cuenta, Mi estación hoy, Mi jornada, Mesa de atención y Tickets
   components/Apoyo.tsx    Pedir apoyo en la estación y ver su avance (app pública)
   components/MetroMap.tsx Mapa interactivo (SVG con zoom, arrastre y selección de estaciones)
   components/             Interfaz (planificador, resultado, reportes, moderación, emergencia, privacidad)

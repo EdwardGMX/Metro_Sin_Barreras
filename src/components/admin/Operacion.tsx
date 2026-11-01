@@ -42,6 +42,7 @@ import {
   type EstadoRonda,
   type Incidente,
   type OrdenMantenimiento,
+  type Puesto,
   type ResultadoEquipo,
   type SlotId,
   type TipoIncidente,
@@ -295,7 +296,7 @@ export function Rondas({ ctx }: { ctx: Ctx }) {
   const yo = personaDeCuenta(op, cuenta)
   const hoy = rondasDelDia(op, station, ahora, ahora)
   const prog = programaDe(op, station)
-  const candidatos = personasDe(op, station).filter((p) => p.puesto !== "Policía auxiliar")
+  const candidatos = personasDe(op, station).filter((p) => p.puesto === "Jefe(a) de estación" || p.puesto === "Personal de estación")
   const recientes = op.rondas.filter((r) => r.station === station).slice(0, 8)
 
   return (
@@ -589,8 +590,9 @@ function IncidenteItem({ ctx, x, puedeAsignar }: { ctx: Ctx; x: Incidente; puede
   const { db, ahora, cuenta, operar } = ctx
   const op = operacionDe(db)
   const yo = personaDeCuenta(op, cuenta)
-  const ORDEN_PUESTO = { "Personal de estación": 0, "Policía auxiliar": 1, "Jefe(a) de estación": 2 } as const
+  const ORDEN_PUESTO: Record<Puesto, number> = { "Personal de estación": 0, "Policía auxiliar": 1, "Jefe(a) de estación": 2, "Personal de limpieza": 3 }
   const candidatos = personasDe(op, x.station)
+    .filter((p) => p.puesto !== "Personal de limpieza")
     .filter((p) => !cuenta.roles.includes("jefe_seguridad") || p.puesto === "Policía auxiliar")
     .sort((a, b) => ORDEN_PUESTO[a.puesto] - ORDEN_PUESTO[b.puesto])
   const [quien, setQuien] = useState(x.asignadoA ?? candidatos[0]?.id ?? "")

@@ -11,7 +11,7 @@ import { Dialog } from "./ui"
  * contenidos y lo aprueba Gobernanza (HU-28, RN9), con su fuente y fecha (CA-15.1).
  */
 function contenidoPublicado(): ContenidoEmergencia {
-  return leer<EstadoConsola | null>("msb.consola.v2", null)?.contenido?.publicado ?? CONTENIDO_EJEMPLO
+  return leer<EstadoConsola | null>("msb.consola.v3", null)?.contenido?.publicado ?? CONTENIDO_EJEMPLO
 }
 
 export function EmergencyButton() {

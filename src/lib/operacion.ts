@@ -37,7 +37,7 @@ export const META_LLEGADA = 15 * MIN
 /** Vigencia de lo que observa el personal en una ronda o verificación. */
 export const VIGENCIA_OBSERVACION = 12 * HORA
 
-export type Puesto = "Jefe(a) de estación" | "Personal de estación" | "Policía auxiliar"
+export type Puesto = "Jefe(a) de estación" | "Personal de estación" | "Policía auxiliar" | "Personal de limpieza"
 export type Persona = { id: string; station: string; nombre: string; puesto: Puesto; cuentaId?: string }
 export type ProgramaEstacion = { station: string; responsables: Record<SlotId, string> }
 export type ResultadoEquipo = "funciona" | "con_fallas" | "fuera_servicio"
@@ -207,22 +207,27 @@ const PLANTILLA_DEMO: Array<[string, string, Puesto, string?]> = [
   ["Tacubaya", "Jorge Aranda Vela", "Personal de estación", "C-PE-TAC"],
   ["Tacubaya", "Lucía Ferrer Gómez", "Personal de estación"],
   ["Tacubaya", "Karla Jiménez Soto", "Policía auxiliar", "C-SEG-TAC"],
+  ["Tacubaya", "Rosa Martínez Ortiz", "Personal de limpieza"],
   ["Pantitlán", "Mónica Ruiz Cabrera", "Jefe(a) de estación", "C-JE-PAN"],
   ["Pantitlán", "Héctor Campos Nava", "Personal de estación"],
   ["Pantitlán", "Sofía Prieto León", "Personal de estación"],
   ["Pantitlán", "Raúl Ochoa Medina", "Policía auxiliar"],
+  ["Pantitlán", "Javier Soto Ramírez", "Personal de limpieza"],
   ["Hidalgo", "Fernando Ibarra Solís", "Jefe(a) de estación"],
   ["Hidalgo", "Patricia Lugo Reyes", "Personal de estación"],
   ["Hidalgo", "Andrés Robledo Paz", "Personal de estación"],
   ["Hidalgo", "Iván Castro Ruiz", "Policía auxiliar"],
+  ["Hidalgo", "Carmen Ledesma Ruiz", "Personal de limpieza"],
   ["Balderas", "Gabriela Montes Vargas", "Jefe(a) de estación"],
   ["Balderas", "Óscar Peña Rosas", "Personal de estación"],
   ["Balderas", "Laura Quintero Sáenz", "Personal de estación"],
   ["Balderas", "Elena Duarte Gil", "Policía auxiliar"],
+  ["Balderas", "Alfredo Pineda Luna", "Personal de limpieza"],
   ["Zapata", "Ricardo Salas Mora", "Jefe(a) de estación"],
   ["Zapata", "Verónica Núñez Lara", "Personal de estación"],
   ["Zapata", "Emilio Vega Ríos", "Personal de estación"],
   ["Zapata", "Tomás Ávila Cruz", "Policía auxiliar"],
+  ["Zapata", "Silvia Arenas Cano", "Personal de limpieza"],
 ]
 
 export const personasDe = (op: Operacion, station: string) => op.plantilla.filter((p) => p.station === station)

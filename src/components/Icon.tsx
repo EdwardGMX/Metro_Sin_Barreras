@@ -5,6 +5,7 @@ export type IconName =
   | "eye" | "ear" | "info" | "location" | "lock" | "people" | "phone" | "route" | "shield"
   | "speaker" | "stairs" | "swap" | "train" | "user" | "wheelchair" | "x" | "walker" | "dog" | "bag" | "senior"
   | "plus" | "minus" | "expand" | "chevron-down" | "search" | "map" | "list"
+  | "broom" | "ticket" | "clipboard" | "inbox" | "chat" | "card" | "star" | "sign" | "tool" | "monitor" | "send" | "refresh"
 
 const icons: Record<IconName, ReactNode> = {
   alert: (<><path d="M12 3 2.5 20h19L12 3Z" /><path d="M12 10v4m0 3h.01" /></>),
@@ -41,6 +42,18 @@ const icons: Record<IconName, ReactNode> = {
   search: (<><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></>),
   map: <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 0v14m6-12v14" />,
   list: <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />,
+  broom: (<><path d="M14 3 10.5 11" /><path d="M7 11h8l2 4-1 6H6l-1-6Z" /><path d="M9 15v6m3-6v6" /></>),
+  ticket: (<><path d="M4 7a2 2 0 0 0 2-2h12a2 2 0 0 0 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0-2 2H6a2 2 0 0 0-2-2v-3a2 2 0 0 0 0-4Z" /><path d="M14 6v2m0 3v2m0 3v2" /></>),
+  clipboard: (<><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V2.8h6V4M9 10h6M9 14h6M9 18h3" /></>),
+  inbox: (<><path d="M3 13h5l1.5 3h5l1.5-3h5" /><path d="M5.5 5h13L21 13v6H3v-6Z" /></>),
+  chat: (<><path d="M4 5h16v11H10l-5 4v-4H4Z" /><path d="M8 10h8M8 13h5" /></>),
+  card: (<><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="11" r="2.2" /><path d="M5.5 16.5c.6-1.6 1.9-2.4 3.5-2.4s2.9.8 3.5 2.4M15 10h3.5M15 13.5h3.5" /></>),
+  star: <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z" />,
+  sign: (<><path d="M12 21v-9M12 6V3" /><path d="M5 6h12l2.5 3L17 12H5Z" /></>),
+  tool: <path d="M14.7 6.3a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3l7.7-7.7a4 4 0 0 1-2-2ZM16 3.5a4 4 0 0 0-1.3 2.8M20.5 8a4 4 0 0 1-2.8 1.3" />,
+  monitor: (<><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8m-4-4v4" /></>),
+  send: <path d="m4 12 16-8-6 16-2.5-6.5Zm7.5 1.5L20 4" />,
+  refresh: <path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6" />,
   senior: (<><circle cx="11" cy="4" r="2" /><path d="M11 7v6l-3 7m3-7 3 3 1 4M8 10l3-2 3 2M17 10v10" /></>),
 }
 

@@ -4,6 +4,7 @@ import { formatoHora, franjasValidas } from "./data/saturation"
 import { borrarFotos } from "./lib/evidence"
 import { combinarRestricciones, PERFILES, type PerfilId } from "./lib/profiles"
 import { sembrarOperacion } from "./lib/operacion"
+import { sembrarServicio } from "./lib/servicio"
 import { aplicarRetencion, baseVacia, estadoEquipo, sembrarDemo, type BaseDatos } from "./lib/reports"
 import { calcularRuta, sugerirHora, type ConsultaEstado, type ConsultaRuta, type EquipoRuta, type TipoHora } from "./lib/router"
 import { guardar, leer } from "./lib/storage"
@@ -12,6 +13,7 @@ import { Icon } from "./components/Icon"
 import { MetroMap } from "./components/MetroMap"
 import { isoLocal, parseFecha, ProfileChooser, resumenPerfiles, StationSearch, TimePicker } from "./components/Planner"
 import { Apoyo } from "./components/Apoyo"
+import { MiCuenta } from "./components/vistas/MiCuenta"
 import { AvisoPrivacidad } from "./components/Privacy"
 import { Reports, type Sesion } from "./components/Reports"
 import { esValida, RouteSummary, TripPanel } from "./components/TripStatus"
@@ -19,7 +21,7 @@ import { COLOR_NIVEL } from "./components/MetroMap"
 import { Dialog } from "./components/ui"
 
 type FontScale = "normal" | "large" | "xlarge"
-type Vista = "planear" | "reportar" | "apoyo"
+type Vista = "planear" | "reportar" | "apoyo" | "cuenta"
 type Paso = 1 | 2 | 3 | 4
 
 const CLAVE_DB = "msb.db.v1"
@@ -38,6 +40,7 @@ const VISTAS: Array<{ id: Vista; texto: string; href: string }> = [
   { id: "planear", texto: "Planear ruta", href: "#planner" },
   { id: "reportar", texto: "Reportar", href: "#reportar" },
   { id: "apoyo", texto: "Pedir apoyo", href: "#apoyo" },
+  { id: "cuenta", texto: "Mi cuenta", href: "#mi-cuenta" },
 ]
 
 /** La pestaña que indica el enlace (#reportar, #apoyo o #planner); otros anclajes no cambian de pestaña. */
@@ -45,6 +48,7 @@ const vistaDeHash = (actual: Vista = "planear"): Vista => {
   const h = window.location.hash
   if (h.startsWith("#reportar")) return "reportar"
   if (h.startsWith("#apoyo")) return "apoyo"
+  if (h.startsWith("#mi-cuenta")) return "cuenta"
   if (h === "" || h === "#" || h.startsWith("#planner")) return "planear"
   return actual
 }
@@ -69,7 +73,7 @@ export default function App() {
   const [fontScale, setFontScale] = useState<FontScale>("normal")
   const [highContrast, setHighContrast] = useState(false)
   const [isReading, setIsReading] = useState(false)
-  const [db, setDb] = useState<BaseDatos>(() => sembrarOperacion(sembrarDemo(leer<BaseDatos>(CLAVE_DB, baseVacia()), Date.now()), Date.now()))
+  const [db, setDb] = useState<BaseDatos>(() => sembrarServicio(sembrarOperacion(sembrarDemo(leer<BaseDatos>(CLAVE_DB, baseVacia()), Date.now()), Date.now()), Date.now()))
   const [sesion, setSesionState] = useState<Sesion | null>(() => leer<Sesion | null>(CLAVE_SESION, null))
   const [consulta, setConsulta] = useState<ConsultaRuta | null>(null)
   const [preseleccion, setPreseleccion] = useState<{ station: string; equipmentId: string; n: number } | null>(null)
@@ -550,6 +554,12 @@ export default function App() {
             <section className="service-panel">
               <Reports db={db} actualizar={actualizar} sesion={sesion} setSesion={setSesion} preseleccion={preseleccion} onAviso={() => setAvisoAbierto(true)} />
             </section>
+          </div>
+        )}
+
+        {vista === "cuenta" && (
+          <div className="mx-auto max-w-screen-2xl px-4 py-6 pb-12 lg:px-8">
+            <MiCuenta db={db} actualizar={actualizar} sesion={sesion} setSesion={setSesion} onAviso={() => setAvisoAbierto(true)} onReportarEquipo={reportarEstacion} />
           </div>
         )}
 

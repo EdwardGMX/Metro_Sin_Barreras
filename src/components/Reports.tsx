@@ -18,13 +18,59 @@ import { seguimientoReporte } from "../lib/operacion"
 import { Icon } from "./Icon"
 import { Dialog } from "./ui"
 
-export type Sesion = { seudonimo: string; nivel: "Llave" | "Llave Verificada"; expira: number }
+/**
+ * Sesión de la persona usuaria. El nombre llega de Llave CDMX solo para mostrarse en este
+ * dispositivo; el servidor guarda únicamente el seudónimo y el nivel (RN3).
+ */
+export type Sesion = { seudonimo: string; nivel: "Llave" | "Llave Verificada"; expira: number; nombre?: string }
 
-const CUENTAS_PRUEBA: Array<{ sub: string; nombre: string; nivel: Sesion["nivel"] }> = [
-  { sub: "usuario-prueba-1", nombre: "Cuenta de prueba 1", nivel: "Llave" },
-  { sub: "usuario-prueba-2", nombre: "Cuenta de prueba 2", nivel: "Llave Verificada" },
-  { sub: "usuario-prueba-3", nombre: "Cuenta de prueba 3", nivel: "Llave" },
+export const CUENTAS_PRUEBA: Array<{ sub: string; nombre: string; persona: string; nivel: Sesion["nivel"] }> = [
+  { sub: "usuario-prueba-1", nombre: "Cuenta de prueba 1", persona: "Luis Ángel Pérez Soto", nivel: "Llave" },
+  { sub: "usuario-prueba-2", nombre: "Cuenta de prueba 2", persona: "Ana Lucía Ramírez Ortega", nivel: "Llave Verificada" },
+  { sub: "usuario-prueba-3", nombre: "Cuenta de prueba 3", persona: "María Fernanda Ruiz Cano", nivel: "Llave" },
 ]
+
+/** Inicio de sesión simulado (OIDC): solo se conservan el seudónimo y el nivel; el identificador original se descarta (RF-19). */
+export async function entrarConLlave(cuenta: (typeof CUENTAS_PRUEBA)[number], actualizar: (fn: (db: BaseDatos) => void) => void): Promise<Sesion> {
+  const seud = await seudonimo(cuenta.sub)
+  actualizar((d) => {
+    if (!d.usuarios[seud]) d.usuarios[seud] = { seudonimo: seud, nivel: cuenta.nivel, verificado: false, alta: Date.now() }
+    registrarEvento(d, { evento: "inicio de sesión", objeto: seud.slice(0, 10), decision: `nivel ${cuenta.nivel}`, rol: "sistema" }, Date.now())
+  })
+  return { seudonimo: seud, nivel: cuenta.nivel, expira: Date.now() + 60 * 60_000, nombre: cuenta.persona }
+}
+
+export function DialogoLlave({ open, onClose, onElegir }: { open: boolean; onClose: () => void; onElegir: (c: (typeof CUENTAS_PRUEBA)[number]) => void }) {
+  return (
+    <Dialog open={open} onClose={onClose} title="Proveedor de identidad (simulación)">
+      <p className="text-sm leading-relaxed">
+        En la versión final, este botón te lleva a Llave CDMX, el servicio de identidad digital del Gobierno de la Ciudad de México, que devuelve a Metro Sin Barreras solo un identificador y el nivel de tu cuenta. La integración real requiere la autorización de la ADIP, por eso en el prototipo se usa un proveedor simulado con cuentas de prueba.
+      </p>
+      <p className="mt-3 rounded-xl bg-warning-soft p-3 text-sm font-bold text-warning">No escribas aquí tu contraseña real de Llave CDMX: esta pantalla no la pide ni la necesita.</p>
+      <ul className="mt-4 space-y-2">
+        {CUENTAS_PRUEBA.map((c) => (
+          <li key={c.sub}>
+            <button type="button" className="option-row w-full text-left" onClick={() => onElegir(c)}>
+              <span className="option-icon">
+                <Icon name="user" />
+              </span>
+              <span className="flex-1">
+                <span className="block font-bold">
+                  {c.persona} <span className="font-semibold text-ink-muted">· {c.nombre.toLowerCase()}</span>
+                </span>
+                <span className="block text-sm text-ink-muted">
+                  Nivel: {c.nivel}
+                  {c.sub === "usuario-prueba-2" ? " · con historial de reportes y Tarjeta Incluyente" : ""}
+                </span>
+              </span>
+              <Icon name="arrow-right" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Dialog>
+  )
+}
 
 export function Reports({
   db,
@@ -64,13 +110,7 @@ export function Reports({
   const equipos = equiposDeEstacion(station)
 
   const iniciarSesion = async (cuenta: (typeof CUENTAS_PRUEBA)[number]) => {
-    // Solo se conservan el seudónimo y el nivel; el identificador original se descarta (RF-19).
-    const seud = await seudonimo(cuenta.sub)
-    actualizar((d) => {
-      if (!d.usuarios[seud]) d.usuarios[seud] = { seudonimo: seud, nivel: cuenta.nivel, verificado: false, alta: Date.now() }
-      registrarEvento(d, { evento: "inicio de sesión", objeto: seud.slice(0, 10), decision: `nivel ${cuenta.nivel}`, rol: "sistema" }, Date.now())
-    })
-    setSesion({ seudonimo: seud, nivel: cuenta.nivel, expira: Date.now() + 60 * 60_000 })
+    setSesion(await entrarConLlave(cuenta, actualizar))
     setLoginAbierto(false)
   }
 
@@ -419,28 +459,7 @@ export function Reports({
         </div>
       </div>
 
-      <Dialog open={loginAbierto} onClose={() => setLoginAbierto(false)} title="Proveedor de identidad (simulación)">
-        <p className="text-sm leading-relaxed">
-          En la versión final, este botón te lleva a Llave CDMX, el servicio de identidad digital del Gobierno de la Ciudad de México, que devuelve a Metro Sin Barreras solo un identificador y el nivel de tu cuenta. La integración real requiere la autorización de la ADIP, por eso en el prototipo se usa un proveedor simulado con cuentas de prueba.
-        </p>
-        <p className="mt-3 rounded-xl bg-warning-soft p-3 text-sm font-bold text-warning">No escribas aquí tu contraseña real de Llave CDMX: esta pantalla no la pide ni la necesita.</p>
-        <ul className="mt-4 space-y-2">
-          {CUENTAS_PRUEBA.map((c) => (
-            <li key={c.sub}>
-              <button type="button" className="option-row w-full text-left" onClick={() => void iniciarSesion(c)}>
-                <span className="option-icon">
-                  <Icon name="user" />
-                </span>
-                <span className="flex-1">
-                  <span className="block font-bold">{c.nombre}</span>
-                  <span className="block text-sm text-ink-muted">Nivel: {c.nivel}</span>
-                </span>
-                <Icon name="arrow-right" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Dialog>
+      <DialogoLlave open={loginAbierto} onClose={() => setLoginAbierto(false)} onElegir={(c) => void iniciarSesion(c)} />
     </div>
   )
 }

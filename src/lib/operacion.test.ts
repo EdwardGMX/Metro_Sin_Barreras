@@ -42,12 +42,12 @@ describe("roles operativos: cada uno ve solo lo suyo", () => {
   it("cada rol operativo tiene módulos distintos", () => {
     const { e } = preparar()
     const mods = (id: string) => modulosVisibles(c(e, id), AHORA).map((m) => m.id)
-    expect(mods("C-OPER")).toEqual(["inicio", "infraestructura", "rondas", "mantenimiento"])
-    expect(mods("C-JE-TAC")).toEqual(["inicio", "estacion", "rondas"])
-    expect(mods("C-PE-TAC")).toEqual(["inicio", "estacion", "rondas"])
-    expect(mods("C-MANT")).toEqual(["inicio", "mantenimiento"])
-    expect(mods("C-JSEG")).toEqual(["inicio", "seguridad"])
-    expect(mods("C-SEG-TAC")).toEqual(["inicio", "seguridad"])
+    expect(mods("C-OPER")).toEqual(["inicio", "infraestructura", "rondas", "mantenimiento", "tickets"])
+    expect(mods("C-JE-TAC")).toEqual(["inicio", "estacion", "rondas", "tickets"])
+    expect(mods("C-PE-TAC")).toEqual(["inicio", "estacion", "rondas", "tickets"])
+    expect(mods("C-MANT")).toEqual(["inicio", "mantenimiento", "tickets"])
+    expect(mods("C-JSEG")).toEqual(["inicio", "seguridad", "tickets"])
+    expect(mods("C-SEG-TAC")).toEqual(["inicio", "seguridad", "tickets"])
   })
   it("ningún rol operativo ve fotos ni la bitácora", () => {
     const { e } = preparar()
