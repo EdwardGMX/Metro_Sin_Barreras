@@ -3,12 +3,14 @@
  * verificación en sitio, órdenes de mantenimiento, incidentes y solicitudes de apoyo.
  */
 import { describe, expect, it } from "vitest"
-import { altaCuenta, estadoInicial, modulosVisibles, puede, DOMINIO, type Cuenta, type EstadoConsola, type Resultado } from "./admin"
+import { alcanzaEstacion, altaCuenta, estacionesVisibles, estadoInicial, gerenciasDeEstacion, modulosVisibles, puede, DOMINIO, type Cuenta, type EstadoConsola, type Resultado } from "./admin"
 import {
   asignarIncidente,
   asignarResponsable,
   avanzarIncidente,
+  marcarPasoProtocolo,
   personasDe,
+  registrarIncidente,
   registrarRonda,
   reportesPorVerificar,
   resolverOrden,
@@ -18,6 +20,7 @@ import {
   solicitarApoyo,
   tomarOrden,
   verificarEnSitio,
+  ESTACIONES_PILOTO,
   type ResultadoEquipo,
 } from "./operacion"
 import { equiposDeEstacion } from "../data/accessibility"
@@ -155,5 +158,61 @@ describe("solicitudes de apoyo e incidentes", () => {
     const { e, db } = preparar()
     expect(avanzarIncidente(db, e, c(e, "C-SEG-TAC"), "AP-0101", "en_camino", "", AHORA).ok).toBe(false)
     expect(avanzarIncidente(db, e, c(e, "C-SEG-TAC"), "AP-0100", "en_camino", "", AHORA).ok).toBe(true)
+  })
+})
+
+describe("coordinación por gerencia de líneas (Estatuto Orgánico del STC)", () => {
+  it("cada gerencia ve solo las estaciones del piloto de sus líneas", () => {
+    const { e } = preparar()
+    expect(estacionesVisibles(c(e, "C-OPER"), ESTACIONES_PILOTO)).toEqual(["Tacubaya", "Pantitlán", "Hidalgo", "Balderas", "Zapata"])
+    expect(estacionesVisibles(c(e, "C-OPER-2"), ESTACIONES_PILOTO)).toEqual(["Pantitlán", "Hidalgo"])
+    expect(estacionesVisibles(c(e, "C-OPER-3"), ESTACIONES_PILOTO)).toEqual(["Tacubaya", "Pantitlán"])
+    expect(alcanzaEstacion(c(e, "C-OPER-2"), "Zapata")).toBe(false)
+  })
+  it("una estación depende de la gerencia de cada línea que la atiende", () => {
+    expect(gerenciasDeEstacion("Pantitlán").map((g) => g.id)).toEqual(["GL-1", "GL-2", "GL-3"])
+    expect(gerenciasDeEstacion("Hidalgo").map((g) => g.id)).toEqual(["GL-1", "GL-2"])
+    expect(gerenciasDeEstacion("Zapata").map((g) => g.id)).toEqual(["GL-1"])
+  })
+  it("una coordinación no puede darse de alta sin gerencia", () => {
+    const { e } = preparar()
+    const pedro = c(e, "C-PEDRO")
+    const base = { nombre: "Coordinación nueva", correo: `coord.nueva@${DOMINIO}`, puesto: "Coordinación", tipo: "stc" as const, roles: ["operacion" as const] }
+    expect(altaCuenta(e, pedro, base, AHORA).ok).toBe(false)
+    expect(altaCuenta(e, pedro, { ...base, gerencia: "GL-3" }, AHORA).ok).toBe(true)
+  })
+  it("una coordinación no programa rondas fuera de sus líneas", () => {
+    const { e, db } = preparar()
+    const ana = personasDe(op(db), "Zapata")[0]
+    expect(codigo(asignarResponsable(db, e, c(e, "C-OPER-2"), "Zapata", "09:00", ana.id, AHORA))).toBe(403)
+  })
+})
+
+describe("protocolo de persona atrapada", () => {
+  const atrapada = (e: EstadoConsola, db: BaseDatos, station: string) => {
+    const quien = station === "Pantitlán" ? c(e, "C-JE-PAN") : c(e, "C-JE-TAC")
+    expect(registrarIncidente(db, e, quien, station, "persona_atrapada", "Elevador del acceso de calle", "", AHORA).ok).toBe(true)
+    return op(db).incidentes.find((x) => x.station === station && x.tipo === "persona_atrapada" && x.ts === AHORA)!.id
+  }
+  it("el jefe de estación marca los pasos y quedan en la bitácora", () => {
+    const { e, db } = preparar()
+    const id = atrapada(e, db, "Tacubaya")
+    expect(marcarPasoProtocolo(db, e, c(e, "C-JE-TAC"), id, "emergencias", true, AHORA).ok).toBe(true)
+    expect(op(db).incidentes.find((x) => x.id === id)!.protocolo?.emergencias).toBe(AHORA)
+    expect(e.auditoria.some((a) => a.accion === "paso de protocolo cumplido" && a.objeto.startsWith(id))).toBe(true)
+    expect(marcarPasoProtocolo(db, e, c(e, "C-JE-TAC"), id, "emergencias", false, AHORA).ok).toBe(true)
+    expect(op(db).incidentes.find((x) => x.id === id)!.protocolo?.emergencias).toBeUndefined()
+  })
+  it("no lo conduce otra estación ni el personal sin permiso de asignar", () => {
+    const { e, db } = preparar()
+    const id = atrapada(e, db, "Tacubaya")
+    expect(codigo(marcarPasoProtocolo(db, e, c(e, "C-JE-PAN"), id, "personal", true, AHORA))).toBe(403)
+    expect(codigo(marcarPasoProtocolo(db, e, c(e, "C-PE-TAC"), id, "personal", true, AHORA))).toBe(403)
+    expect(marcarPasoProtocolo(db, e, c(e, "C-JSEG"), id, "personal", true, AHORA).ok).toBe(true)
+  })
+  it("solo aplica a una persona atrapada", () => {
+    const { e, db } = preparar()
+    const otro = op(db).incidentes.find((x) => x.tipo !== "persona_atrapada" && x.estado !== "atendida" && x.estado !== "cancelada")!
+    expect(codigo(marcarPasoProtocolo(db, e, c(e, "C-JSEG"), otro.id, "personal", true, AHORA))).toBe(400)
   })
 })

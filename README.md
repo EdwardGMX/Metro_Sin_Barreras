@@ -8,6 +8,7 @@ Prototipo de aplicación web progresiva (PWA) que recomienda rutas accesibles en
 
 | Función | Requisitos |
 |---|---|
+| Asistente en cuatro pasos (perfil, estaciones, hora y ruta) con pestañas Planear ruta, Reportar y Pedir apoyo; el foco pasa al título de cada paso y se puede volver a cualquier paso completado. Estilo del Trabajo Terminal 2: fondo gris claro, tarjetas blancas, caja de instrucciones y acento azul | RF-14, RF-22, RF-18, RF-11 |
 | Mapa interactivo de la red completa (12 líneas, 163 estaciones): arrastrar, acercar con rueda, pellizco o botones; tocar una estación para elegirla como origen o destino; saturación por colores y estaciones de transbordo marcadas | RF-10, RF-12, RIE-01 |
 | Ruta accesible con Dijkstra dependiente del tiempo; etiquetas “Accesible”, “Accesible con apoyo” o “Sin ruta posible” | RF-10, RF-11, RN1, RN2 |
 | Siete perfiles de movilidad combinables (silla de ruedas; bastón, muletas o andadera; persona adulta mayor; ceguera o baja visión; perro guía; sordera o hipoacusia; carriola, equipaje, embarazo o lesión temporal) | RF-22, RN7 |
@@ -33,13 +34,15 @@ Atiende las observaciones de la revisión del avance: la interfaz de quienes adm
 
 **Operación del STC (después de la entrega)**
 
+Los roles siguen las unidades del Estatuto Orgánico del STC (Gaceta Oficial de la CDMX, 17/09/2024). El Estatuto no tiene una gerencia de estaciones: las estaciones dependen de la Dirección de Transportación por gerencia de líneas, así que cada coordinación ve solo sus líneas y una estación como Pantitlán depende de tres gerencias. La consola muestra la unidad de cada rol en «Mi tablero › Quién tiene acceso a la consola».
+
 | Rol | Quién | Módulos | Qué información tiene |
 |---|---|---|---|
-| Administración de la operación | Gerencia de estaciones | Infraestructura, Rondas, Mantenimiento (lectura) | Estado de los equipos de toda la red, rondas de hoy por estación, quién las da y si las cumple, órdenes y fallas recurrentes |
-| Jefe(a) de estación | Cada estación | Mi estación, Rondas | Equipos de su estación, reportes por verificar, solicitudes de apoyo (las asigna), programa de rondas (decide quién las da), órdenes de su estación |
+| Coordinación de gerencia de líneas | Una cuenta por Gerencia de Líneas de la Dirección de Transportación (1-3-4-12, 2-5-6-B y 7-8-9-A) | Infraestructura, Rondas, Mantenimiento (lectura) | Solo las estaciones y líneas de su gerencia: estado de los equipos, rondas de hoy, quién las da y si las cumple, órdenes y fallas recurrentes |
+| Jefe(a) de estación | Cada estación | Mi estación, Rondas | Equipos de su estación, de qué gerencias depende, reportes por verificar, solicitudes de apoyo (las asigna; una persona atrapada aparece primero con su protocolo de cinco pasos), programa de rondas (decide quién las da), órdenes de su estación |
 | Personal de estación | Cada estación | Mi estación, Rondas | Sus rondas asignadas, reportes por verificar en sitio, apoyos que le asignan |
-| Revisión de reportes | Centro de atención a usuarios | Moderación | Reportes en cuarentena y sus fotos |
-| Mantenimiento electromecánico | Gerencia de mantenimiento | Mantenimiento | Órdenes por prioridad y plazo; las toma y las cierra |
+| Revisión de reportes | Gerencia de Atención al Usuario (Dirección de Medios) | Moderación | Reportes en cuarentena y sus fotos |
+| Mantenimiento electromecánico | Subdirección General de Mantenimiento (Instalaciones Fijas) | Mantenimiento | Órdenes por prioridad y plazo; las toma y las cierra |
 | Jefe(a) de seguridad | Gerencia de Seguridad Institucional | Seguridad y apoyo | Incidentes y apoyos de la red, tiempos de respuesta, saturación de la próxima hora; asigna a la policía auxiliar |
 | Personal de seguridad | Policía auxiliar de cada estación | Seguridad y apoyo | Lo que tiene asignado en su estación |
 | Supervisión del servicio | Dirección o enlace del STC | Solo su tablero | Indicadores agregados |
@@ -62,7 +65,7 @@ Al entrar, cada persona llega a **Mi tablero**, que responde la pregunta de su f
 
 | Rol | Pregunta del tablero | Indicadores | Gráficas |
 |---|---|---|---|
-| Administración de la operación | ¿La infraestructura accesible funciona en toda la red y se revisa a tiempo? | Equipos funcionando, rondas a tiempo hoy y en 7 días, órdenes abiertas, tiempo medio de reparación, fallas recurrentes, reportes sin verificar | Rondas de hoy por estación; equipos funcionando por línea; cumplimiento por responsable |
+| Coordinación de gerencia de líneas | ¿La infraestructura accesible de mis líneas funciona y se revisa a tiempo? | Equipos funcionando, rondas a tiempo hoy y en 7 días, órdenes abiertas, tiempo medio de reparación, fallas recurrentes, reportes sin verificar | Rondas de hoy por estación; equipos funcionando por línea; cumplimiento por responsable |
 | Jefe(a) de estación | ¿Mi estación está accesible ahora y todo se revisó a tiempo? | Equipos funcionando, rondas de hoy, reportes por verificar, apoyos sin asignar y en curso, órdenes de su estación | Rondas de la semana; tiempo desde la última revisión de cada equipo |
 | Personal de estación | ¿Qué me toca revisar y atender ahora? | Siguiente ronda, rondas de hoy, reportes por verificar, apoyos asignados, rondas a tiempo, equipos con falla | Sus rondas de la semana |
 | Mantenimiento electromecánico | ¿Qué equipos reparo primero y cuánto tardamos? | Órdenes abiertas, fuera de plazo, sin tomar, tiempo medio de reparación, reparadas en plazo, fallas recurrentes | Antigüedad de las órdenes; órdenes por tipo de equipo |

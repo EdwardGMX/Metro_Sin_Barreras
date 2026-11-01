@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { equipoPorId } from "../../data/accessibility"
 import { allStations } from "../../data/metroData"
 import {
+  alcanceTexto,
   altaCuenta,
   auditar,
   bitacoraCsv,
@@ -31,6 +32,8 @@ import {
   REFERENCIA,
   ROLES,
   ROLES_DE_ESTACION,
+  ROLES_DE_GERENCIA,
+  GERENCIAS_LINEAS,
   TIPO_LABEL,
   type Cuenta,
   type RolId,
@@ -224,7 +227,10 @@ export function Cuentas({ ctx }: { ctx: Ctx }) {
                         </div>
                       </fieldset>
                     ) : (
-                      c.roles.map((r) => ROLES[r].nombre).join(", ")
+                      <>
+                        {c.roles.map((r) => ROLES[r].nombre).join(", ")}
+                        {(c.estaciones?.length || c.gerencia) && <span className="block text-xs text-ink-muted">Alcance: {alcanceTexto(c)}</span>}
+                      </>
                     )}
                   </td>
                   <td>
@@ -314,7 +320,9 @@ function AltaCuenta({ ctx }: { ctx: Ctx }) {
   const [vence, setVence] = useState("")
   const [roles, setRoles] = useState<RolId[]>([])
   const [estacion, setEstacion] = useState("")
+  const [gerencia, setGerencia] = useState("")
   const deEstacion = roles.some((r) => ROLES_DE_ESTACION.includes(r))
+  const deGerencia = roles.some((r) => ROLES_DE_GERENCIA.includes(r))
 
   const enviar = (ev: FormEvent) => {
     ev.preventDefault()
@@ -322,7 +330,7 @@ function AltaCuenta({ ctx }: { ctx: Ctx }) {
       altaCuenta(
         e,
         cuenta,
-        { nombre, correo: `${usuario.trim()}@${DOMINIO}`, puesto, roles, tipo, vence: tipo === "externo" ? vence : undefined, estaciones: deEstacion && estacion ? [estacion] : undefined },
+        { nombre, correo: `${usuario.trim()}@${DOMINIO}`, puesto, roles, tipo, vence: tipo === "externo" ? vence : undefined, estaciones: deEstacion && estacion ? [estacion] : undefined, gerencia: deGerencia && gerencia ? gerencia : undefined },
         now,
       ),
     )
@@ -407,6 +415,21 @@ function AltaCuenta({ ctx }: { ctx: Ctx }) {
               <option value="">Elige la estación</option>
               {allStations.map((s) => (
                 <option key={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {deGerencia && (
+          <div>
+            <label className="field-label" htmlFor="alta-gerencia">
+              Gerencia de líneas
+            </label>
+            <select id="alta-gerencia" className="field-select" value={gerencia} onChange={(e) => setGerencia(e.target.value)}>
+              <option value="">Elige la gerencia</option>
+              {GERENCIAS_LINEAS.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.nombre}
+                </option>
               ))}
             </select>
           </div>

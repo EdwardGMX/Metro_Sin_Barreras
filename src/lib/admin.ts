@@ -10,7 +10,7 @@
  * verificación en dos pasos. La autorización por rol la aplica la API de la
  * consola con estas mismas reglas. En el prototipo todo se simula en el navegador.
  */
-import { allStations, normalizar } from "../data/metroData"
+import { allStations, linesAtStation, normalizar } from "../data/metroData"
 import { PERFIL_HORARIO } from "../data/saturation"
 
 /* ------------------------------------------------------------------ */
@@ -87,7 +87,7 @@ export const PERMISO_LABEL: Record<Permiso, string> = {
   "contenidos.aprobar": "Aprobar y publicar el contenido",
   "bitacora.ver": "Consultar y exportar la bitácora de auditoría",
   "indicadores.ver": "Ver el tablero de indicadores agregados del servicio",
-  "infra.ver": "Ver el estado de la infraestructura accesible de toda la red",
+  "infra.ver": "Ver el estado de la infraestructura accesible de las líneas a su cargo",
   "rondas.programar": "Programar las rondas de revisión y definir quién las da",
   "rondas.registrar": "Registrar las rondas de revisión de los equipos",
   "estacion.ver": "Ver los equipos, reportes y solicitudes de apoyo de su estación",
@@ -110,6 +110,8 @@ export type Rol = {
   /** Quién ocupa el rol durante el piloto y quién después de la entrega. */
   piloto: string
   operacion: string
+  /** Unidad del Estatuto Orgánico del STC (GOCDMX, 17/09/2024) de la que depende el rol después de la entrega. */
+  unidad: string
   permisos: Permiso[]
   noPuede: string[]
 }
@@ -117,21 +119,23 @@ export type Rol = {
 export const ROLES: Record<RolId, Rol> = {
   operacion: {
     id: "operacion",
-    nombre: "Administración de la operación",
+    nombre: "Coordinación de gerencia de líneas",
     grupo: "operacion",
-    descripcion: "Ve el estado de la infraestructura accesible en toda la red, programa las rondas de revisión, define quién las da y vigila que se cumplan.",
-    piloto: "Coordinación de estaciones del STC (estaciones del piloto)",
-    operacion: "Gerencia de estaciones del STC",
+    descripcion: "Ve el estado de la infraestructura accesible de las líneas de su gerencia, programa las rondas de revisión de sus estaciones, define quién las da y vigila que se cumplan.",
+    piloto: "Una coordinación por gerencia de líneas (estaciones del piloto)",
+    operacion: "Gerencia de Líneas que corresponda (1-3-4-12, 2-5-6-B o 7-8-9-A)",
+    unidad: "Subdirección General de Operación › Dirección de Transportación › Gerencia de Líneas",
     permisos: ["infra.ver", "rondas.programar", "ordenes.ver"],
-    noPuede: ["Ver reportes individuales, fotos o seudónimos", "Cerrar órdenes de mantenimiento", "Administrar cuentas (lo hace el área de TI)"],
+    noPuede: ["Ver estaciones de líneas que no son de su gerencia", "Ver reportes individuales, fotos o seudónimos", "Cerrar órdenes de mantenimiento", "Administrar cuentas (lo hace el área de TI)"],
   },
   jefe_estacion: {
     id: "jefe_estacion",
     nombre: "Jefe(a) de estación",
     grupo: "operacion",
-    descripcion: "Responde por su estación: ve sus equipos, los reportes ciudadanos y las solicitudes de apoyo, da o asigna las rondas, envía las fallas a mantenimiento y asigna los apoyos.",
+    descripcion: "Responde por su estación: ve sus equipos, los reportes ciudadanos y las solicitudes de apoyo, da o asigna las rondas, envía las fallas a mantenimiento, asigna los apoyos y conduce el protocolo de persona atrapada.",
     piloto: "Jefes de estación de las cinco estaciones del piloto",
     operacion: "Jefe(a) de cada estación",
+    unidad: "Personal operativo de la estación, bajo la Gerencia de Líneas de cada línea que la atiende",
     permisos: ["estacion.ver", "rondas.registrar", "rondas.programar", "reportes.verificar", "ordenes.ver", "ordenes.crear", "incidentes.ver", "incidentes.asignar", "incidentes.atender"],
     noPuede: ["Ver otras estaciones", "Cerrar órdenes de mantenimiento", "Ver fotos o seudónimos de quien reporta"],
   },
@@ -142,6 +146,7 @@ export const ROLES: Record<RolId, Rol> = {
     descripcion: "Da las rondas que tiene asignadas, verifica en sitio los reportes ciudadanos y atiende las solicitudes de apoyo de su estación.",
     piloto: "Personal de las estaciones del piloto",
     operacion: "Personal de cada estación",
+    unidad: "Personal operativo de la estación, bajo la Gerencia de Líneas de cada línea que la atiende",
     permisos: ["estacion.ver", "rondas.registrar", "reportes.verificar", "incidentes.ver", "incidentes.atender"],
     noPuede: ["Cambiar el programa de rondas", "Asignar incidentes a otras personas", "Ver otras estaciones o datos de quien reporta"],
   },
@@ -151,7 +156,8 @@ export const ROLES: Record<RolId, Rol> = {
     grupo: "operacion",
     descripcion: "Recibe las órdenes de trabajo de los equipos con falla, las atiende por prioridad y registra la reparación.",
     piloto: "Supervisión de mantenimiento de las líneas del piloto",
-    operacion: "Gerencia de mantenimiento electromecánico del STC",
+    operacion: "Supervisión de instalaciones mecánicas (elevadores y escaleras)",
+    unidad: "Subdirección General de Mantenimiento › Dirección de Instalaciones Fijas",
     permisos: ["ordenes.ver", "ordenes.atender"],
     noPuede: ["Confirmar en sitio su propia reparación (lo hace el personal de la estación)", "Ver reportes individuales o datos de personas"],
   },
@@ -162,6 +168,7 @@ export const ROLES: Record<RolId, Rol> = {
     descripcion: "Coordina la respuesta a incidentes y a solicitudes de apoyo en la red, asigna al personal de seguridad y anticipa dónde se necesitará por la saturación.",
     piloto: "Coordinación de seguridad de las estaciones del piloto",
     operacion: "Gerencia de Seguridad Institucional del STC",
+    unidad: "Gerencia de Seguridad Institucional (depende de la Dirección General)",
     permisos: ["seguridad.ver", "incidentes.ver", "incidentes.asignar"],
     noPuede: ["Ver fotos o seudónimos", "Cambiar el estado de los equipos"],
   },
@@ -172,6 +179,7 @@ export const ROLES: Record<RolId, Rol> = {
     descripcion: "Atiende los incidentes y acompañamientos que le asignan en su estación.",
     piloto: "Policía auxiliar de las estaciones del piloto",
     operacion: "Policía auxiliar y vigilancia de cada estación",
+    unidad: "Policía auxiliar asignada a la estación, coordinada por la Gerencia de Seguridad Institucional",
     permisos: ["seguridad.ver", "incidentes.ver", "incidentes.atender"],
     noPuede: ["Ver incidentes de otras estaciones", "Asignar incidentes"],
   },
@@ -182,6 +190,7 @@ export const ROLES: Record<RolId, Rol> = {
     descripcion: "Mantiene la infraestructura y las cuentas del personal.",
     piloto: "Arquitecto Cloud / MLOps",
     operacion: "Área de TI del STC",
+    unidad: "Subdirección General de Administración y Finanzas › Gerencia de Organización y Sistemas",
     permisos: ["cuentas.ver", "cuentas.gestionar", "plataforma.ver", "plataforma.operar"],
     noPuede: ["Ver reportes, fotos o seudónimos", "Consultar la bitácora de auditoría", "Publicar modelos o contenidos", "Modificar su propia cuenta"],
   },
@@ -192,6 +201,7 @@ export const ROLES: Record<RolId, Rol> = {
     descripcion: "Opera la ingesta, las capturas del inventario y la calidad de los datos.",
     piloto: "Ingeniero de Datos",
     operacion: "Persona ingeniera de datos designada",
+    unidad: "Subdirección General de Administración y Finanzas › Gerencia de Organización y Sistemas",
     permisos: ["datos.ver", "datos.operar", "modelos.ver"],
     noPuede: ["Ver reportes, fotos o seudónimos", "Publicar modelos", "Administrar cuentas"],
   },
@@ -202,6 +212,7 @@ export const ROLES: Record<RolId, Rol> = {
     descripcion: "Evalúa, publica y revierte el modelo de saturación y el perfil horario.",
     piloto: "Especialista en IA / ML",
     operacion: "Persona científica de datos designada",
+    unidad: "Subdirección General de Administración y Finanzas › Gerencia de Organización y Sistemas",
     permisos: ["modelos.ver", "modelos.publicar", "datos.ver"],
     noPuede: ["Publicar un modelo que no supere la regla de HU-09", "Ver reportes, fotos o seudónimos", "Administrar cuentas"],
   },
@@ -209,9 +220,10 @@ export const ROLES: Record<RolId, Rol> = {
     id: "moderacion",
     grupo: "operacion",
     nombre: "Revisión de reportes",
-    descripcion: "Revisa en el centro de atención los reportes ciudadanos en cuarentena y sus fotos; los que pasan se verifican en sitio en la estación.",
+    descripcion: "Revisa desde la Gerencia de Atención al Usuario los reportes ciudadanos en cuarentena y sus fotos; los que pasan se verifican en sitio en la estación.",
     piloto: "Ingeniera de QA / UAT",
-    operacion: "Personal de atención a usuarios del STC",
+    operacion: "Personal de la Gerencia de Atención al Usuario",
+    unidad: "Dirección de Medios › Gerencia de Atención al Usuario",
     permisos: ["moderacion.ver", "moderacion.decidir", "evidencias.ver"],
     noPuede: ["Ver el seudónimo completo de quien reporta", "Cambiar el estado oficial de un equipo", "Administrar cuentas o ver la bitácora"],
   },
@@ -222,6 +234,7 @@ export const ROLES: Record<RolId, Rol> = {
     descripcion: "Vigila la LFPDPPP: ARCO, consentimientos, retención, accesos y auditoría.",
     piloto: "Oficial de Gobernanza de Datos",
     operacion: "Oficial de protección de datos del STC",
+    unidad: "Área que designe el STC como responsable de datos personales (el Estatuto no la nombra)",
     permisos: [
       "privacidad.ver",
       "privacidad.arco",
@@ -241,6 +254,7 @@ export const ROLES: Record<RolId, Rol> = {
     descripcion: "Redacta el contenido de emergencia y los textos con lenguaje inclusivo.",
     piloto: "Desarrollador Frontend / UX",
     operacion: "Persona responsable de comunicación accesible del STC",
+    unidad: "Dirección de Medios",
     permisos: ["contenidos.ver", "contenidos.proponer"],
     noPuede: ["Publicar contenido sin la aprobación de Gobernanza", "Ver reportes, fotos o datos personales"],
   },
@@ -251,6 +265,7 @@ export const ROLES: Record<RolId, Rol> = {
     descripcion: "Consulta indicadores agregados, sin datos personales.",
     piloto: "Project Manager / Product Owner",
     operacion: "Dirección o enlace del STC",
+    unidad: "Dirección General › Dirección de Seguimiento, Proyectos y Asuntos Estratégicos",
     permisos: ["indicadores.ver"],
     noPuede: ["Ver datos personales, reportes individuales o fotos", "Ejecutar cualquier acción"],
   },
@@ -349,6 +364,30 @@ export const TIPO_LABEL: Record<TipoCuenta, string> = { stc: "Personal del STC",
 /** Roles que trabajan en una estación concreta: su cuenta debe indicar cuál. */
 export const ROLES_DE_ESTACION: RolId[] = ["jefe_estacion", "personal_estacion", "personal_seguridad"]
 
+/** Roles que trabajan por gerencia de líneas: su cuenta debe indicar cuál. */
+export const ROLES_DE_GERENCIA: RolId[] = ["operacion"]
+
+export type GerenciaLineas = { id: string; nombre: string; lineas: string[] }
+
+/**
+ * Gerencias de la Dirección de Transportación (Estatuto Orgánico del STC,
+ * Gaceta Oficial de la CDMX del 17/09/2024). Cada estación depende de la
+ * gerencia de cada línea que la atiende: Pantitlán, por ejemplo, de las tres.
+ */
+export const GERENCIAS_LINEAS: GerenciaLineas[] = [
+  { id: "GL-1", nombre: "Gerencia de Líneas 1, 3, 4 y 12", lineas: ["1", "3", "4", "12"] },
+  { id: "GL-2", nombre: "Gerencia de Líneas 2, 5, 6 y B", lineas: ["2", "5", "6", "B"] },
+  { id: "GL-3", nombre: "Gerencia de Líneas 7, 8, 9 y A", lineas: ["7", "8", "9", "A"] },
+]
+
+export const gerenciaPorId = (id?: string) => GERENCIAS_LINEAS.find((g) => g.id === id)
+
+/** Gerencias de las que depende una estación (una por cada línea distinta que la atiende). */
+export function gerenciasDeEstacion(station: string): GerenciaLineas[] {
+  const lineas = linesAtStation(station)
+  return GERENCIAS_LINEAS.filter((g) => g.lineas.some((l) => lineas.includes(l)))
+}
+
 export type Cuenta = {
   id: string
   nombre: string
@@ -362,6 +401,8 @@ export type Cuenta = {
   vence?: string
   /** Estaciones que puede ver (roles de estación). Sin valor: toda la red. */
   estaciones?: string[]
+  /** Gerencia de líneas (coordinación): solo ve las estaciones de esas líneas. */
+  gerencia?: string
   alta: number
   ultimoAcceso?: number
   creadaPor: string
@@ -501,9 +542,26 @@ export function modulosVisibles(c: Cuenta | undefined, now: number) {
   return MODULOS.filter((m) => !m.requiere || (Array.isArray(m.requiere) ? m.requiere.some((p) => permisos.has(p)) : permisos.has(m.requiere)))
 }
 
-/** ¿La cuenta puede ver esta estación? Las cuentas sin estaciones asignadas ven toda la red. */
+/**
+ * ¿La cuenta puede ver esta estación? Una cuenta con estaciones solo ve esas;
+ * una con gerencia, las estaciones de sus líneas; las demás, toda la red.
+ */
 export function alcanzaEstacion(c: Cuenta, station: string): boolean {
-  return !c.estaciones || c.estaciones.length === 0 || c.estaciones.includes(station)
+  if (c.estaciones && c.estaciones.length > 0) return c.estaciones.includes(station)
+  const g = gerenciaPorId(c.gerencia)
+  if (g) return linesAtStation(station).some((l) => g.lineas.includes(l))
+  return true
+}
+
+/** Las estaciones de una lista que la cuenta puede ver. */
+export function estacionesVisibles(c: Cuenta, universo: string[]): string[] {
+  return universo.filter((s) => alcanzaEstacion(c, s))
+}
+
+/** Texto corto del alcance de la cuenta: su estación, su gerencia o toda la red. */
+export function alcanceTexto(c: Cuenta): string {
+  if (c.estaciones?.length) return c.estaciones.join(", ")
+  return gerenciaPorId(c.gerencia)?.nombre ?? "Toda la red"
 }
 
 export function rolesTexto(c: Cuenta): string {
@@ -569,7 +627,7 @@ export function sesionValida(s: SesionPersonal | null, now: number): boolean {
 /* Cuentas: alta, roles, suspensión (HU-23)                            */
 /* ------------------------------------------------------------------ */
 
-export type DatosCuenta = { nombre: string; correo: string; puesto: string; roles: RolId[]; tipo: TipoCuenta; vence?: string; estaciones?: string[] }
+export type DatosCuenta = { nombre: string; correo: string; puesto: string; roles: RolId[]; tipo: TipoCuenta; vence?: string; estaciones?: string[]; gerencia?: string }
 
 export function validarCuenta(d: DatosCuenta, existentes: Cuenta[], idEditando: string | null, now: number): string[] {
   const errores: string[] = []
@@ -581,6 +639,7 @@ export function validarCuenta(d: DatosCuenta, existentes: Cuenta[], idEditando: 
     if (d.roles.includes(a) && d.roles.includes(b)) errores.push(`No se pueden combinar «${ROLES[a].nombre}» y «${ROLES[b].nombre}»: ${razon}.`)
   }
   if (d.roles.some((r) => ROLES_DE_ESTACION.includes(r)) && !(d.estaciones && d.estaciones.length)) errores.push("Indica la estación de la persona: los roles de estación solo ven la suya.")
+  if (d.roles.some((r) => ROLES_DE_GERENCIA.includes(r)) && !gerenciaPorId(d.gerencia)) errores.push("Indica la gerencia de líneas: la coordinación solo ve las estaciones de sus líneas.")
   if (d.tipo === "externo") {
     if (!d.vence) errores.push("Las cuentas externas requieren fecha de vencimiento (fin del contrato).")
     else if (d.vence < hoyIso(now)) errores.push("La fecha de vencimiento ya pasó.")
@@ -918,7 +977,10 @@ export function estadoInicial(now: number): EstadoConsola {
   const venceContratos = "2026-12-06"
   const cuentas: Cuenta[] = [
     // Personal del STC que opera el servicio después de la entrega (nombres ficticios de demostración).
-    cuenta("C-OPER", "Rocío Salinas Ortega", "rocio.salinas", "Coordinadora de estaciones (administración de la operación)", ["operacion"], "stc", now),
+    // Una coordinación por gerencia de líneas de la Dirección de Transportación (Estatuto Orgánico del STC).
+    cuenta("C-OPER", "Rocío Salinas Ortega", "rocio.salinas", "Coordinadora · Gerencia de Líneas 1, 3, 4 y 12", ["operacion"], "stc", now, { gerencia: "GL-1" }),
+    cuenta("C-OPER-2", "Gerardo Medina Ríos", "gerardo.medina", "Coordinador · Gerencia de Líneas 2, 5, 6 y B", ["operacion"], "stc", now, { gerencia: "GL-2" }),
+    cuenta("C-OPER-3", "Lucía Navarro Gómez", "lucia.navarro", "Coordinadora · Gerencia de Líneas 7, 8, 9 y A", ["operacion"], "stc", now, { gerencia: "GL-3" }),
     cuenta("C-JE-TAC", "Arturo Lemus Pineda", "arturo.lemus", "Jefe de estación · Tacubaya", ["jefe_estacion"], "stc", now, { estaciones: ["Tacubaya"] }),
     cuenta("C-PE-TAC", "Jorge Aranda Vela", "jorge.aranda", "Personal de estación · Tacubaya", ["personal_estacion"], "stc", now, { estaciones: ["Tacubaya"] }),
     cuenta("C-JE-PAN", "Mónica Ruiz Cabrera", "monica.ruiz", "Jefa de estación · Pantitlán", ["jefe_estacion"], "stc", now, { estaciones: ["Pantitlán"] }),

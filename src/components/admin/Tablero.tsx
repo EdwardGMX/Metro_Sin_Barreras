@@ -529,19 +529,20 @@ export function MiTablero({ ctx }: { ctx: Ctx }) {
           <p className="mt-3 mb-3 text-sm text-ink-muted">Trece roles: los de operación son el personal del STC que usa la consola cada día; los de soporte mantienen la plataforma, los datos, el modelo y la privacidad. Una persona puede tener más de un rol si no son incompatibles.</p>
           <div className="table-wrap" tabIndex={0} role="region" aria-label="Roles de la consola">
             <table className="admin-table">
-              <caption className="sr-only">Roles de la consola, quién los ocupa en el piloto y después de la entrega</caption>
+              <caption className="sr-only">Roles de la consola, quién los ocupa en el piloto, después de la entrega y de qué unidad del STC dependen</caption>
               <thead>
                 <tr>
                   <th scope="col">Rol</th>
                   <th scope="col">En el piloto</th>
                   <th scope="col">Después de la entrega</th>
+                  <th scope="col">Unidad del STC (Estatuto Orgánico)</th>
                   <th scope="col">Su tablero responde</th>
                 </tr>
               </thead>
               {(["operacion", "soporte"] as const).map((grupo) => (
                 <tbody key={grupo}>
                   <tr>
-                    <th scope="colgroup" colSpan={4} className="bg-surface text-xs font-extrabold uppercase tracking-wide">
+                    <th scope="colgroup" colSpan={5} className="bg-surface text-xs font-extrabold uppercase tracking-wide">
                       {grupo === "operacion" ? "Operación del STC (después de la entrega)" : "Soporte técnico y gobernanza"}
                     </th>
                   </tr>
@@ -550,6 +551,7 @@ export function MiTablero({ ctx }: { ctx: Ctx }) {
                       <th scope="row">{ROLES[r].nombre}</th>
                       <td>{ROLES[r].piloto}</td>
                       <td>{ROLES[r].operacion}</td>
+                      <td>{ROLES[r].unidad}</td>
                       <td>{PREGUNTAS[r]}</td>
                     </tr>
                   ))}
@@ -559,7 +561,7 @@ export function MiTablero({ ctx }: { ctx: Ctx }) {
           </div>
           <p className="mt-3 text-xs text-ink-muted">
             No tienen cuenta: las personas usuarias y acompañantes, el personal de estaciones (usa la app pública), la persona investigadora UX y la intérprete de Lengua de Señas Mexicana. Incompatibles:{" "}
-            {ROLES_INCOMPATIBLES.map(([a, b]) => `${ROLES[a].nombre} con ${ROLES[b].nombre}`).join("; ")}.
+            {ROLES_INCOMPATIBLES.map(([a, b]) => `${ROLES[a].nombre} con ${ROLES[b].nombre}`).join("; ")}. Unidades según el Estatuto Orgánico del STC (Gaceta Oficial de la CDMX, 17/09/2024).
           </p>
         </details>
       </div>

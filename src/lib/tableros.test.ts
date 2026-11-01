@@ -144,3 +144,15 @@ describe("Los indicadores reaccionan a la operación", () => {
     expect(t.acciones[0]).toMatchObject({ prioridad: "alta", modulo: "cuentas" })
   })
 })
+
+describe("El tablero de coordinación se limita a su gerencia de líneas", () => {
+  it("la gerencia de las líneas 2, 5, 6 y B solo ve Pantitlán e Hidalgo y sus líneas", () => {
+    const { estado, db } = base()
+    const t = tableroDe("operacion", { estado, db, ahora: AHORA, cuenta: cuentaDe(estado, "C-OPER-2") })
+    const matriz = t.graficas.find((g) => g.id === "rondas-hoy")
+    const barras = t.graficas.find((g) => g.id === "disponibilidad-lineas")
+    expect(matriz && "filas" in matriz ? matriz.filas.map((f) => f.etiqueta) : []).toEqual(["Pantitlán", "Hidalgo"])
+    expect(barras && "barras" in barras ? barras.barras.map((b) => b.etiqueta) : []).toEqual(["Línea 2", "Línea 5", "Línea 6", "Línea B"])
+    expect(kpi(t.indicadores, "funcionando").etiqueta).toBe("Equipos funcionando en tus líneas")
+  })
+})

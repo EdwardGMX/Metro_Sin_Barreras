@@ -1,17 +1,17 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
+/* Estilo del Trabajo Terminal 2: fondo gris claro, tarjetas blancas, acento azul y tipografía del sistema. */
 @theme {
-  --font-sans: "Manrope", sans-serif;
-  --color-canvas: #f4f7f9;
-  --color-surface: #eaf1f3;
+  --font-sans: "Segoe UI", Tahoma, Geneva, Verdana, system-ui, sans-serif;
+  --color-canvas: #f4f7f6;
+  --color-surface: #eef2f4;
   --color-map: #edf2f4;
-  --color-ink: #102f3a;
-  --color-ink-muted: #48616a;
-  --color-border: #b8c9ce;
-  --color-brand: #006b75;
-  --color-brand-dark: #004e56;
-  --color-brand-soft: #d5f0f1;
+  --color-ink: #2c3e50;
+  --color-ink-muted: #566573;
+  --color-border: #b9c3c9;
+  --color-brand: #1f6fb2;
+  --color-brand-dark: #174f80;
+  --color-brand-soft: #ebf5fb;
   --color-success: #17633f;
   --color-success-soft: #ddf3e6;
   --color-warning: #8a4b00;
@@ -57,7 +57,7 @@
   .contrast-button-active { @apply bg-white text-ink hover:bg-white; }
   .reader-button { @apply flex min-h-9 items-center gap-2 rounded-lg border-2 border-white bg-white px-3 text-xs font-extrabold text-ink hover:bg-brand-soft; }
   .reader-button-active { @apply bg-warning-soft text-warning; }
-  .app-header { @apply sticky top-0 z-30 border-b border-border bg-white/95 backdrop-blur; }
+  .app-header { @apply relative z-30 border-b border-border bg-white; }
   .nav-link { @apply relative flex h-16 items-center text-sm font-bold text-ink-muted transition-colors hover:text-brand; }
   .nav-link-active { @apply text-brand; }
   .nav-link-active::after { content: ""; @apply absolute inset-x-0 bottom-0 h-1 rounded-full bg-brand; }
@@ -127,6 +127,41 @@
   .emergency-button { @apply fixed bottom-4 right-4 z-40 flex min-h-12 items-center gap-2 rounded-full border-2 border-white bg-danger px-4 sm:bottom-5 sm:right-5 sm:min-h-14 sm:px-5 font-extrabold text-white shadow-card transition hover:brightness-110; }
   .dialog { @apply m-auto w-[calc(100%-2rem)] rounded-3xl border-2 border-border bg-white p-0 text-ink shadow-card; }
   .primary-button:disabled { @apply cursor-not-allowed opacity-60; }
+
+  /* Pestañas de la app pública */
+  .app-tabs { @apply grid grid-cols-3 gap-2 sm:flex sm:gap-2; }
+  .app-tab { @apply flex min-h-11 items-center justify-center rounded-lg bg-surface px-2 sm:px-4 text-center text-sm font-bold text-ink transition hover:bg-brand-soft; }
+  .app-tab-active { @apply bg-brand text-white hover:bg-brand; }
+
+  /* Asistente por pasos (estilo del Trabajo Terminal 2) */
+  .wizard-shell { @apply mx-auto grid max-w-screen-2xl gap-5 px-4 py-6 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)] lg:px-8; }
+  .wizard-col { @apply min-w-0; }
+  .wizard-steps { @apply mb-4 grid grid-cols-4 gap-2; }
+  .wizard-step { @apply flex w-full flex-col items-center gap-1 rounded-lg p-1 text-center disabled:cursor-default; }
+  .wizard-step:not(:disabled):hover .wizard-step-dot { @apply ring-4 ring-brand/20; }
+  .wizard-step-dot { @apply grid size-9 place-items-center rounded-full border-2 border-border bg-white text-sm font-extrabold text-ink-muted; }
+  .wizard-step-label { @apply text-xs font-semibold text-ink-muted; }
+  .wizard-step-current .wizard-step-dot { @apply border-brand bg-brand text-white; }
+  .wizard-step-current .wizard-step-label { @apply font-extrabold text-ink; }
+  .wizard-step-done .wizard-step-dot { @apply border-brand bg-brand-soft text-brand; }
+  .wizard-step-done .wizard-step-label { @apply text-brand underline; }
+  .wizard-card { @apply rounded-lg bg-white p-5 sm:p-7; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
+  .wizard-actions { @apply mt-6 flex gap-3; }
+  .instructions { @apply rounded border-l-[5px] border-[#3498db] bg-brand-soft px-4 py-3 text-sm leading-relaxed text-[#1b3a4b]; }
+  .choice-card { @apply flex min-h-16 cursor-pointer items-start gap-3 rounded-lg border-2 border-border bg-white p-3 transition hover:border-brand has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-[#005fcc]; }
+  .choice-card-active { @apply border-brand bg-brand-soft; }
+  .choice-card input { @apply mt-1; }
+  .choice-icon { @apply grid size-9 shrink-0 place-items-center rounded-lg bg-white text-brand; }
+  .trip-summary { @apply divide-y divide-border rounded-lg border-2 border-border bg-canvas text-sm; }
+  .trip-summary-row { @apply grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2; }
+  .trip-summary-row dt { @apply text-xs font-bold uppercase tracking-wide text-ink-muted; }
+  .trip-summary-row dd { @apply min-w-0 font-bold; }
+  .wizard-map { @apply hidden min-h-[520px] flex-col overflow-hidden rounded-lg border-2 border-border bg-map; height: 72svh; }
+  .wizard-map-visible { @apply flex; }
+  @media (min-width: 1024px) {
+    .wizard-map { display: flex; position: sticky; top: 1rem; align-self: start; height: calc(100dvh - 2rem); min-height: 560px; }
+  }
+  .map-title-bar { @apply flex flex-wrap items-baseline justify-between gap-x-3 border-b-2 border-border bg-white px-4 py-2; }
 
   /* Planificador y mapa */
   .planner-shell { @apply grid border-b-2 border-border bg-white; grid-template-areas: "form" "map" "trip"; }

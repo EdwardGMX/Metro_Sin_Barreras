@@ -5,7 +5,7 @@
 import { useMemo, useState, type FormEvent } from "react"
 import { equipoPorId, equiposDeEstacion, todosLosEquipos } from "../../data/accessibility"
 import { metroLines } from "../../data/metroData"
-import { alcanzaEstacion, puede } from "../../lib/admin"
+import { alcanceTexto, alcanzaEstacion, estacionesVisibles, gerenciaPorId, gerenciasDeEstacion, puede } from "../../lib/admin"
 import {
   asignarIncidente,
   asignarResponsable,
@@ -13,6 +13,7 @@ import {
   crearOrden,
   cumplimientoPorResponsable,
   etiquetaSlot,
+  marcarPasoProtocolo,
   operacionDe,
   personaDeCuenta,
   personaPorId,
@@ -31,6 +32,7 @@ import {
   ESTACIONES_PILOTO,
   ESTADO_INCIDENTE_LABEL,
   ESTADO_RONDA_LABEL,
+  PROTOCOLO_ATRAPADA,
   PUNTOS_ENCUENTRO,
   RESULTADO_LABEL,
   SLA_ORDEN,
@@ -79,30 +81,37 @@ function SelectorEstacion({ estaciones, valor, onChange }: { estaciones: string[
   )
 }
 
-const estacionesDe = (ctx: Ctx) => (ctx.cuenta.estaciones?.length ? ctx.cuenta.estaciones : ESTACIONES_PILOTO)
+/** Estaciones del piloto que la cuenta puede ver: la suya, las de su gerencia de líneas o todas. */
+const estacionesDe = (ctx: Ctx) => {
+  const visibles = estacionesVisibles(ctx.cuenta, ESTACIONES_PILOTO)
+  return visibles.length ? visibles : (ctx.cuenta.estaciones ?? ESTACIONES_PILOTO)
+}
 
 /* ------------------------------------------------------------------ */
 /* Infraestructura (vista de administrador)                            */
 /* ------------------------------------------------------------------ */
 
 export function Infraestructura({ ctx }: { ctx: Ctx }) {
-  const { db, ahora } = ctx
+  const { db, ahora, cuenta } = ctx
   const op = operacionDe(db)
   const [linea, setLinea] = useState("todas")
-  const equipos = useMemo(() => todosLosEquipos.map((eq) => ({ eq, ...estadoEquipo(db, eq.id, ahora) })), [db, ahora])
+  const gerencia = gerenciaPorId(cuenta.gerencia)
+  const lineasVisibles = metroLines.filter((l) => !gerencia || gerencia.lineas.includes(l.id))
+  const estaciones = estacionesDe(ctx)
+  const equipos = useMemo(() => todosLosEquipos.filter((eq) => alcanzaEstacion(cuenta, eq.station)).map((eq) => ({ eq, ...estadoEquipo(db, eq.id, ahora) })), [db, ahora, cuenta])
   const enLinea = (station: string) => linea === "todas" || metroLines.find((l) => l.id === linea)?.stations.includes(station)
   const conFalla = equipos.filter((x) => x.estado !== "disponible" && enLinea(x.eq.station))
-  const porVerificar = reportesPorVerificar(db, null, ahora)
-  const resp = cumplimientoPorResponsable(op, ESTACIONES_PILOTO, 7, ahora)
-  const rec = recurrentes(op, 30, ahora)
+  const porVerificar = reportesPorVerificar(db, estaciones, ahora)
+  const resp = cumplimientoPorResponsable(op, estaciones, 7, ahora)
+  const rec = recurrentes(op, 30, ahora).filter((x) => alcanzaEstacion(cuenta, equipoPorId(x.equipmentId)?.station ?? ""))
 
   return (
     <>
-      <Encabezado eyebrow="Administración de la operación" titulo="Estado de la infraestructura">
-        Elevadores, salvaescaleras y escaleras eléctricas de toda la red, con lo que reportan el personal de las estaciones, mantenimiento y las personas usuarias. No muestra datos de personas.
+      <Encabezado eyebrow={gerencia ? `Coordinación · ${gerencia.nombre}` : "Coordinación de gerencia de líneas"} titulo="Estado de la infraestructura">
+        Elevadores, salvaescaleras y escaleras eléctricas de {gerencia ? `las líneas ${gerencia.lineas.join(", ")}` : "toda la red"}, con lo que reportan el personal de las estaciones, mantenimiento y las personas usuarias. No muestra datos de personas.
       </Encabezado>
 
-      <Tarjeta titulo="Estaciones del piloto">
+      <Tarjeta titulo={`Estaciones del piloto en tus líneas (${estaciones.length})`}>
         <div className="table-wrap" tabIndex={0} role="region" aria-label="Estaciones del piloto">
           <table className="admin-table">
             <caption className="sr-only">Estado de equipos, rondas, órdenes y reportes por estación del piloto</caption>
@@ -117,7 +126,7 @@ export function Infraestructura({ ctx }: { ctx: Ctx }) {
               </tr>
             </thead>
             <tbody>
-              {ESTACIONES_PILOTO.map((s) => {
+              {estaciones.map((s) => {
                 const eqs = equipos.filter((x) => x.eq.station === s)
                 const ok = eqs.filter((x) => x.estado === "disponible").length
                 const rondas = rondasDelDia(op, s, ahora, ahora)
@@ -160,8 +169,8 @@ export function Infraestructura({ ctx }: { ctx: Ctx }) {
                 Línea
               </label>
               <select id="filtro-linea" className="field-select min-h-10 w-auto" value={linea} onChange={(e) => setLinea(e.target.value)}>
-                <option value="todas">Todas</option>
-                {metroLines.map((l) => (
+                <option value="todas">{gerencia ? "Todas mis líneas" : "Todas"}</option>
+                {lineasVisibles.map((l) => (
                   <option key={l.id} value={l.id}>
                     Línea {l.id}
                   </option>
@@ -291,7 +300,7 @@ export function Rondas({ ctx }: { ctx: Ctx }) {
 
   return (
     <>
-      <Encabezado eyebrow={esJefe ? "Jefe(a) de estación" : registra ? "Personal de estación" : "Administración de la operación"} titulo={`Rondas de revisión · ${station}`}>
+      <Encabezado eyebrow={esJefe ? "Jefe(a) de estación" : registra ? "Personal de estación" : `Coordinación · ${alcanceTexto(cuenta)}`} titulo={`Rondas de revisión · ${station}`}>
         Cinco rondas al día: antes de abrir y a las 9:00, 13:00, 17:00 y 21:00. Quien la da revisa cada elevador, salvaescaleras y escalera eléctrica; una falla crea la orden de mantenimiento y las rutas dejan de usar el equipo. Se registra dentro de 45 minutos de su hora (RN10).
       </Encabezado>
       <SelectorEstacion estaciones={estaciones} valor={station} onChange={setStation} />
@@ -468,14 +477,25 @@ export function MiEstacion({ ctx }: { ctx: Ctx }) {
   const esJefe = cuenta.roles.includes("jefe_estacion")
   const equipos = equiposDeEstacion(station).map((eq) => ({ eq, ...estadoEquipo(db, eq.id, ahora) }))
   const porVerificar = reportesPorVerificar(db, [station], ahora)
-  const abiertos = op.incidentes.filter((x) => x.station === station && x.estado !== "atendida" && x.estado !== "cancelada")
+  // Lo urgente primero: una persona atrapada, luego lo que pidieron las personas usuarias desde la app.
+  const urgencia = (x: Incidente) => (x.tipo === "persona_atrapada" ? 0 : x.origen === "persona_usuaria" ? 1 : 2)
+  const abiertos = op.incidentes
+    .filter((x) => x.station === station && x.estado !== "atendida" && x.estado !== "cancelada")
+    .sort((a, b) => urgencia(a) - urgencia(b) || a.ts - b.ts)
   const cerrados = op.incidentes.filter((x) => x.station === station && x.estado === "atendida" && ahora - (x.atendida ?? 0) < 24 * HORA).slice(0, 5)
+  const gerencias = gerenciasDeEstacion(station)
 
   return (
     <>
       <Encabezado eyebrow={esJefe ? "Jefe(a) de estación" : "Personal de estación"} titulo={`Mi estación · ${station}`}>
         Solicitudes de apoyo, reportes de personas usuarias por verificar y el estado de cada equipo. Lo que confirmes aquí cambia de inmediato las rutas que calcula la app.
       </Encabezado>
+      <p className="callout mt-0 mb-4">
+        <Icon name="info" size="sm" className="mt-0.5" />
+        <span>
+          {station} depende de {gerencias.length === 1 ? "la" : `${gerencias.length} gerencias:`} {gerencias.map((g) => g.nombre).join(" · ")} (Dirección de Transportación). Esta vista junta en un solo lugar lo de todas sus líneas.
+        </span>
+      </p>
       <SelectorEstacion estaciones={estaciones} valor={station} onChange={setStation} />
 
       <div className="grid gap-5 xl:grid-cols-2">
@@ -590,6 +610,7 @@ function IncidenteItem({ ctx, x, puedeAsignar }: { ctx: Ctx; x: Incidente; puede
         {x.station} · {x.punto} · {x.origen === "persona_usuaria" ? "pedido desde la app" : `registró ${x.registradoPor ?? "el personal"}`} {hace(ahora - x.ts)}
       </p>
       {x.detalle && <p className="mt-1 text-sm">«{x.detalle}»</p>}
+      {x.tipo === "persona_atrapada" && <ProtocoloAtrapada ctx={ctx} x={x} />}
       {asignado && (
         <p className="mt-1 text-sm font-semibold">
           Asignado a {asignado.nombre} ({asignado.puesto.toLowerCase()}){x.enCamino ? ` · en camino desde las ${hora(x.enCamino)}` : ""}
@@ -631,6 +652,43 @@ function IncidenteItem({ ctx, x, puedeAsignar }: { ctx: Ctx; x: Incidente; puede
         </div>
       )}
     </li>
+  )
+}
+
+/** Lista de verificación del protocolo de persona atrapada, con el tiempo transcurrido. */
+function ProtocoloAtrapada({ ctx, x }: { ctx: Ctx; x: Incidente }) {
+  const { ahora, cuenta, operar } = ctx
+  const conduce = puede(cuenta, "incidentes.asignar", ahora) && alcanzaEstacion(cuenta, x.station)
+  const hechos = PROTOCOLO_ATRAPADA.filter((p) => x.protocolo?.[p.id]).length
+  return (
+    <fieldset className="mt-3 rounded-xl border-2 border-danger bg-danger-soft p-3">
+      <legend className="px-1 text-sm font-extrabold text-danger">
+        Protocolo de persona atrapada · {hechos} de {PROTOCOLO_ATRAPADA.length} · {hace(ahora - x.ts).replace("hace", "desde hace")}
+      </legend>
+      <ul className="space-y-1.5">
+        {PROTOCOLO_ATRAPADA.map((p) => {
+          const ts = x.protocolo?.[p.id]
+          const id = `prot-${x.id}-${p.id}`
+          return (
+            <li key={p.id} className="flex items-start gap-2 text-sm">
+              <input
+                id={id}
+                type="checkbox"
+                className="mt-0.5 size-5 shrink-0 accent-danger"
+                checked={Boolean(ts)}
+                disabled={!conduce}
+                onChange={(e) => operar((d, est, now) => marcarPasoProtocolo(d, est, cuenta, x.id, p.id, e.target.checked, now))}
+              />
+              <label htmlFor={id} className="leading-snug text-ink">
+                {p.texto}
+                {ts ? <span className="ml-1 font-bold text-success">· {hora(ts)}</span> : null}
+              </label>
+            </li>
+          )
+        })}
+      </ul>
+      {!conduce && <p className="mt-2 text-xs text-ink-muted">Lo conduce el jefe de estación o la Gerencia de Seguridad Institucional.</p>}
+    </fieldset>
   )
 }
 
@@ -759,7 +817,8 @@ export function Mantenimiento({ ctx }: { ctx: Ctx }) {
   const atiende = puede(cuenta, "ordenes.atender", ahora)
   const [filtro, setFiltro] = useState<"abiertas" | "resueltas">("abiertas")
   const [nota, setNota] = useState<Record<string, string>>({})
-  const lista = op.ordenes
+  const ordenes = op.ordenes.filter((o) => alcanzaEstacion(cuenta, o.station))
+  const lista = ordenes
     .filter((o) => (filtro === "abiertas" ? o.estado !== "resuelta" : o.estado === "resuelta" && ahora - (o.resuelta ?? 0) <= 30 * 24 * HORA))
     .sort((a, b) => (filtro === "abiertas" ? (a.prioridad === b.prioridad ? a.creada - b.creada : a.prioridad === "alta" ? -1 : 1) : (b.resuelta ?? 0) - (a.resuelta ?? 0)))
 
@@ -771,7 +830,7 @@ export function Mantenimiento({ ctx }: { ctx: Ctx }) {
 
   return (
     <>
-      <Encabezado eyebrow={atiende ? "Mantenimiento electromecánico" : "Administración de la operación"} titulo="Órdenes de mantenimiento">
+      <Encabezado eyebrow={atiende ? "Mantenimiento electromecánico" : `Coordinación · ${alcanceTexto(cuenta)}`} titulo="Órdenes de mantenimiento">
         Se crean solas cuando una ronda o una verificación en sitio encuentra una falla, o las envía el jefe de estación. Prioridad alta para elevadores y salvaescaleras (24 h); media para escaleras eléctricas (72 h). Al cerrar, el personal de la estación confirma la reparación en su siguiente ronda: quien repara no la confirma (RN9).
       </Encabezado>
       {!atiende && (
@@ -783,7 +842,7 @@ export function Mantenimiento({ ctx }: { ctx: Ctx }) {
       <div className="role-switch" role="group" aria-label="Filtrar órdenes">
         {(["abiertas", "resueltas"] as const).map((f) => (
           <button key={f} type="button" className={`role-switch-btn ${filtro === f ? "role-switch-active" : ""}`} aria-pressed={filtro === f} onClick={() => setFiltro(f)}>
-            {f === "abiertas" ? `Abiertas (${op.ordenes.filter((o) => o.estado !== "resuelta").length})` : "Cerradas (30 días)"}
+            {f === "abiertas" ? `Abiertas (${ordenes.filter((o) => o.estado !== "resuelta").length})` : "Cerradas (30 días)"}
           </button>
         ))}
       </div>

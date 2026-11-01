@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import {
   cuentaVigente,
   estadoInicial,
+  gerenciaPorId,
   iniciarSesion,
   modulosVisibles,
   rolesTexto,
@@ -28,7 +29,7 @@ import { Bitacora, Contenidos, Cuentas, Datos, Modelos, ModeracionConsola, Plata
 import { Infraestructura, Mantenimiento, MiEstacion, Rondas, Seguridad } from "./Operacion"
 import { MiTablero } from "./Tablero"
 
-export const CLAVE_CONSOLA = "msb.consola.v1"
+export const CLAVE_CONSOLA = "msb.consola.v2"
 const CLAVE_SESION_PERSONAL = "msb.consola.sesion"
 const CLAVE_DB = "msb.db.v1"
 
@@ -462,7 +463,7 @@ function LoginPersonal({
                         <span className="font-extrabold">{c.nombre}</span>
                         <span className="text-xs text-ink-muted">
                           {c.roles.map((r) => ROLES[r].nombre).join(" · ")}
-                          {c.estaciones?.length ? ` · ${c.estaciones.join(", ")}` : ""}
+                          {c.estaciones?.length ? ` · ${c.estaciones.join(", ")}` : c.gerencia ? ` · ${gerenciaPorId(c.gerencia)?.nombre ?? ""}` : ""}
                           {c.vence ? ` · vence ${c.vence}` : ""}
                           {c.estado === "suspendida" ? " · suspendida" : ""}
                         </span>

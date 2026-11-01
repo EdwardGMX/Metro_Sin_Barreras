@@ -11,8 +11,11 @@
 import { equipoPorId, todosLosEquipos } from "../data/accessibility"
 import { allStations, metroLines } from "../data/metroData"
 import {
+  alcanzaEstacion,
   calidadHomologacion,
   diasHabiles,
+  estacionesVisibles,
+  gerenciaPorId,
   evaluarPublicacion,
   revisarTerminologia,
   DIA,
@@ -103,7 +106,7 @@ export type Grafica =
 
 /** La pregunta que responde el tablero de cada rol. */
 export const PREGUNTAS: Record<RolId, string> = {
-  operacion: "¿La infraestructura accesible funciona en toda la red y se revisa a tiempo?",
+  operacion: "¿La infraestructura accesible de mis líneas funciona y se revisa a tiempo?",
   jefe_estacion: "¿Mi estación está accesible ahora y todo se revisó a tiempo?",
   personal_estacion: "¿Qué me toca revisar y atender ahora?",
   mantenimiento: "¿Qué equipos reparo primero y cuánto tardamos?",
@@ -1065,37 +1068,44 @@ function equiposConEstado(db: BaseDatos, station: string | null, ahora: number) 
   return lista.map((eq) => ({ eq, ...estadoEquipo(db, eq.id, ahora) }))
 }
 
-function tableroOperacion({ estado, db, ahora }: EntradaTablero): Tablero {
+function tableroOperacion({ estado, db, ahora, cuenta }: EntradaTablero): Tablero {
   const op = operacionDe(db)
-  const equipos = equiposConEstado(db, null, ahora)
+  // Cada coordinación ve solo las líneas de su gerencia (Estatuto Orgánico del STC).
+  const gerencia = gerenciaPorId(cuenta.gerencia)
+  const estaciones = estacionesVisibles(cuenta, ESTACIONES_PILOTO)
+  const equipos = equiposConEstado(db, null, ahora).filter((x) => alcanzaEstacion(cuenta, x.eq.station))
   const disponibles = equipos.filter((x) => x.estado === "disponible").length
   const fuera = equipos.filter((x) => x.estado === "fuera_servicio")
   const inciertos = equipos.filter((x) => x.estado === "incierto").length
-  const hoy = ESTACIONES_PILOTO.flatMap((s) => rondasDelDia(op, s, ahora, ahora))
+  const hoy = estaciones.flatMap((s) => rondasDelDia(op, s, ahora, ahora))
   const vencidasHoy = hoy.filter((r) => r.estado === "hecha" || r.estado === "tarde" || r.estado === "atrasada")
   const aTiempoHoy = vencidasHoy.filter((r) => r.estado === "hecha").length
   const atrasadas = hoy.filter((r) => r.estado === "atrasada")
-  const semana = rondasVencidas(op, ESTACIONES_PILOTO, 7, ahora)
+  const semana = rondasVencidas(op, estaciones, 7, ahora)
   const aTiempoSemana = semana.filter((r) => r.estado === "hecha").length
-  const abiertas = op.ordenes.filter((o) => o.estado !== "resuelta")
+  const abiertas = op.ordenes.filter((o) => o.estado !== "resuelta" && alcanzaEstacion(cuenta, o.station))
   const fueraPlazo = abiertas.filter((o) => vencida(o, ahora))
   const mttr = mttrHoras(op, 30, ahora)
-  const rec = recurrentes(op, 30, ahora)
-  const porVerificar = reportesPorVerificar(db, null, ahora)
+  const rec = recurrentes(op, 30, ahora).filter((x) => alcanzaEstacion(cuenta, equipoPorId(x.equipmentId)?.station ?? ""))
+  const porVerificar = reportesPorVerificar(db, estaciones, ahora)
   void estado
 
-  const lineas = metroLines.map((l) => {
-    const eqs = equipos.filter((x) => l.stations.includes(x.eq.station))
-    const ok = eqs.filter((x) => x.estado === "disponible").length
-    return { linea: l.id, total: eqs.length, ok }
-  }).filter((l) => l.total > 0)
+  const lineas = metroLines
+    .filter((l) => !gerencia || gerencia.lineas.includes(l.id))
+    .map((l) => {
+      const eqs = equipos.filter((x) => l.stations.includes(x.eq.station))
+      const ok = eqs.filter((x) => x.estado === "disponible").length
+      return { linea: l.id, total: eqs.length, ok }
+    })
+    .filter((l) => l.total > 0)
 
-  const resp = cumplimientoPorResponsable(op, ESTACIONES_PILOTO, 7, ahora)
+  const resp = cumplimientoPorResponsable(op, estaciones, 7, ahora)
+  const ambito = gerencia ? `líneas ${gerencia.lineas.join(", ")}` : "la red"
 
   const indicadores: Indicador[] = [
     {
       id: "funcionando",
-      etiqueta: "Equipos funcionando en la red",
+      etiqueta: gerencia ? "Equipos funcionando en tus líneas" : "Equipos funcionando en la red",
       valor: pct(disponibles / Math.max(equipos.length, 1)),
       meta: "≥ 95 % (propuesta)",
       tono: disponibles / equipos.length >= 0.95 ? "ok" : disponibles / equipos.length >= 0.9 ? "warn" : "bad",
@@ -1107,7 +1117,7 @@ function tableroOperacion({ estado, db, ahora }: EntradaTablero): Tablero {
       valor: `${aTiempoHoy} de ${vencidasHoy.length}`,
       meta: "Todas a tiempo (RN10)",
       tono: atrasadas.length ? "bad" : aTiempoHoy === vencidasHoy.length ? "ok" : "warn",
-      nota: atrasadas.length ? `Atrasada: ${atrasadas.map((r) => `${r.station} ${r.slot === "apertura" ? "apertura" : r.slot}`).join(", ")}` : `En las ${ESTACIONES_PILOTO.length} estaciones del piloto`,
+      nota: atrasadas.length ? `Atrasada: ${atrasadas.map((r) => `${r.station} ${r.slot === "apertura" ? "apertura" : r.slot}`).join(", ")}` : `En ${estaciones.length} ${estaciones.length === 1 ? "estación" : "estaciones"} del piloto de ${ambito}`,
     },
     {
       id: "rondas-semana",
@@ -1170,7 +1180,7 @@ function tableroOperacion({ estado, db, ahora }: EntradaTablero): Tablero {
         columnas: SLOTS.map((s) => etiquetaSlot(s, new Date(ahora)).replace(" · apertura", "")),
         ejes: "todas",
         leyenda: LEYENDA_RONDA,
-        filas: ESTACIONES_PILOTO.map((s) => ({ etiqueta: s, celdas: rondasDelDia(op, s, ahora, ahora).map((r) => ({ estado: CELDA_RONDA[r.estado], detalle: `${ESTADO_RONDA_LABEL[r.estado]} · ${r.registro ? r.registro.porNombre : `responsable: ${r.responsable?.nombre ?? "—"}`}` })) })),
+        filas: estaciones.map((s) => ({ etiqueta: s, celdas: rondasDelDia(op, s, ahora, ahora).map((r) => ({ estado: CELDA_RONDA[r.estado], detalle: `${ESTADO_RONDA_LABEL[r.estado]} · ${r.registro ? r.registro.porNombre : `responsable: ${r.responsable?.nombre ?? "—"}`}` })) })),
       },
       {
         tipo: "barras",
