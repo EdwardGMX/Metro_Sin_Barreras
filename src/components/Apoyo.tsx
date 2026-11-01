@@ -199,7 +199,7 @@ export function Apoyo({
               </ul>
             </>
           )}
-          <p className="data-note mt-4">En el prototipo, la solicitud la ve el personal en la consola (#/consola) de este mismo navegador: el jefe de estación de Tacubaya o de Pantitlán, o el jefe de seguridad para cualquier estación del piloto.</p>
+          <p className="data-note mt-4">En el prototipo, la solicitud la ve el personal en la consola (#/consola) de este mismo navegador: el jefe de estación de Tacubaya o de Pantitlán, que la asigna a su personal.</p>
         </div>
       </div>
     </div>

@@ -1,17 +1,15 @@
 /**
  * Vista de inicio del jefe o jefa de estación: «¿Mi estación está bien ahora y mi equipo sabe qué hacer?»
- * Arriba, la estación de un vistazo (equipos, rondas y tareas); abajo, su equipo con las tareas
- * de cada quien y los tickets que llegan a la estación.
+ * Arriba, la estación de un vistazo (equipos, rondas y quién está dónde); en medio, el turno del
+ * equipo como diagrama de Gantt (una fila por persona); abajo, los tickets que llegan a la estación.
  */
 import { useState, type FormEvent } from "react"
 import { equiposDeEstacion } from "../../data/accessibility"
 import { operacionDe, personasDe, rondasDelDia, ESTADO_RONDA_LABEL, reportesPorVerificar, type Persona } from "../../lib/operacion"
 import { estadoEquipo } from "../../lib/reports"
 import {
-  abierto,
   atrasada,
   crearTarea,
-  horaDe,
   servicioDe,
   turnoEnCurso,
   AREA_DE_PUESTO,
@@ -23,8 +21,10 @@ import {
 import { Icon } from "../Icon"
 import { Dialog } from "../ui"
 import type { Ctx } from "../admin/AdminApp"
+import { actividadesDe, presenciaDe, type Actividad, type Presencia } from "../../lib/jornada"
+import { faltan, GanttEquipo, LeyendaActividades, type FilaGantt } from "./Jornada"
 import { DetalleTicket, LevantarTicket, TicketCard } from "./Tickets"
-import { Avatar, BarraEstados, hhmm, ICONO_AREA, Letrero, Trayecto, Vistazo, type Parte } from "./Visual"
+import { Avatar, hhmm, ICONO_AREA, Letrero, Trayecto, Vistazo, type Parte } from "./Visual"
 
 const ICONO_EQUIPO = { Elevador: "elevator", "Escalera eléctrica": "stairs", Salvaescaleras: "stairs" } as const
 
@@ -177,22 +177,38 @@ function AsignarTarea({ ctx, station, open, onClose, persona: inicial }: { ctx: 
 
 /* ------------------------------------------------------------------ */
 
-function TareaFila({ t, now, onAbrir }: { t: Ticket; now: number; onAbrir: () => void }) {
-  const e = estadoTarea(t, now)
+const GRUPOS_PRESENCIA: Array<{ clave: Presencia["clave"]; texto: string }> = [
+  { clave: "apoyo", texto: "En un apoyo" },
+  { clave: "atrasado", texto: "Con algo atrasado" },
+  { clave: "ocupado", texto: "En una actividad" },
+  { clave: "disponible", texto: "Disponibles" },
+  { clave: "fuera", texto: "Fuera de turno" },
+]
+
+/** Quién está dónde en este momento: grupos con las caras de cada quien. */
+function QuienEsta({ filas }: { filas: FilaGantt[] }) {
   return (
-    <li className="tarea-fila">
-      <span className="tarea-hora">{hhmm(horaDe(t))}</span>
-      <button type="button" className="min-w-0 text-left" onClick={onAbrir}>
-        <span className={`block text-sm font-bold leading-snug ${e.clase === "hecha" ? "text-ink-muted line-through decoration-1" : ""}`}>
-          {t.clase === "ticket" && <Icon name="ticket" className="mr-1 inline size-3.5" />}
-          {t.asunto}
-        </span>
-        <span className={`chip mt-1 chip-estado-${e.tono}`}>
-          <Icon name={e.clase === "hecha" ? "check" : e.clase === "atrasada" ? "alert" : e.clase === "curso" ? "clock" : "minus"} className="size-3" />
-          {e.texto}
-        </span>
-      </button>
-    </li>
+    <ul className="space-y-1.5">
+      {GRUPOS_PRESENCIA.map((g) => {
+        const quienes = filas.filter((f) => f.presencia.clave === g.clave)
+        if (!quienes.length) return null
+        return (
+          <li key={g.clave} className="flex items-center gap-2">
+            <span className={`presencia presencia-${g.clave} shrink-0`}>
+              <span className="tabular-nums">{quienes.length}</span> {g.texto}
+            </span>
+            <span className="flex -space-x-2">
+              {quienes.map((f) => (
+                <span key={f.id} title={`${f.nombre}: ${f.presencia.texto}`}>
+                  <Avatar nombre={f.nombre} perfil={f.perfil} />
+                </span>
+              ))}
+            </span>
+            <span className="sr-only">{quienes.map((f) => f.nombre).join(", ")}</span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
@@ -220,6 +236,15 @@ export function VistaJefe({ ctx }: { ctx: Ctx }) {
   const porVerificar = reportesPorVerificar(db, [station], ahora).length
   const apoyos = op.incidentes.filter((x) => x.station === station && (x.estado === "abierta" || x.estado === "asignada" || x.estado === "en_camino"))
   const sinAsignar = apoyos.filter((x) => x.estado === "abierta").length
+
+  const filas: FilaGantt[] = equipo.map((p) => {
+    const acts = actividadesDe(db, p, ahora)
+    return { id: p.id, nombre: p.nombre, puesto: p.puesto, perfil: PERFIL_PUESTO[p.puesto], acts, presencia: presenciaDe(acts, ahora) }
+  })
+  const abrir = (a: Actividad) => {
+    if (a.ticket) setAbiertoId(a.ticket.id)
+    else ir(a.tipo === "ronda" ? "rondas" : "estacion")
+  }
 
   const avisos = [
     fuera.filter((x) => x.st.estado === "fuera_servicio").length ? `${fuera.filter((x) => x.st.estado === "fuera_servicio").length} ${fuera.filter((x) => x.st.estado === "fuera_servicio").length === 1 ? "equipo fuera de servicio" : "equipos fuera de servicio"}` : "",
@@ -265,50 +290,27 @@ export function VistaJefe({ ctx }: { ctx: Ctx }) {
         <Vistazo titulo="Rondas de revisión de hoy" pie={siguiente === -1 ? "Todas las rondas de hoy se hicieron." : `${rondaAtrasada ? "Hay una ronda atrasada. " : ""}Sigue la de las ${rondas[siguiente].hora}${rondas[siguiente].responsable ? ` con ${rondas[siguiente].responsable!.nombre.split(" ")[0]}` : ""}: ${ESTADO_RONDA_LABEL[rondas[siguiente].estado].toLowerCase()}.`}>
           <Trayecto paradas={rondas.map((r) => (r.slot === "apertura" ? "Apertura" : r.slot))} actual={siguiente === -1 ? rondas.length : siguiente} perfil="jefe" alerta={rondas[siguiente]?.estado === "atrasada"} etiqueta="Rondas de hoy" compacto />
         </Vistazo>
-        <Vistazo titulo="Tareas de tu equipo hoy">
-          <BarraEstados partes={partes} etiqueta="Tareas de hoy" />
+        <Vistazo titulo="Tu equipo ahora mismo" pie={`${filas.filter((f) => f.presencia.clave !== "fuera").length} de ${filas.length} personas en turno en ${station}`}>
+          <QuienEsta filas={filas} />
         </Vistazo>
       </div>
 
-      <div className="vista-dos">
-        <section aria-labelledby="mi-equipo" className="space-y-3">
+      <section aria-labelledby="mi-equipo" className="tarjeta">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="mi-equipo" className="seccion-titulo flex items-center gap-2">
-            <Icon name="people" /> Tu equipo en este turno
+            <Icon name="people" /> El turno de tu equipo
           </h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            {equipo.map((p) => {
-              const suyas = sv.tickets.filter((t) => t.asignadoA === p.id && ((t.clase === "tarea" && new Date(t.creado).toDateString() === hoy) || (t.clase === "ticket" && abierto(t)))).sort((a, b) => horaDe(a) - horaDe(b))
-              const hechas = suyas.filter((t) => !abierto(t)).length
-              const area = AREA_DE_PUESTO[p.puesto]
-              return (
-                <article key={p.id} className={`persona-col rol-${PERFIL_PUESTO[p.puesto]}`} aria-label={`${p.nombre}, ${p.puesto}`}>
-                  <header className="flex items-center gap-3">
-                    <Avatar nombre={p.nombre} perfil={PERFIL_PUESTO[p.puesto]} />
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate font-extrabold">{p.nombre}</h3>
-                      <p className="flex items-center gap-1 text-xs text-ink-muted">
-                        <Icon name={ICONO_AREA[area]} className="size-3.5" /> {p.puesto}
-                      </p>
-                    </div>
-                    <span className="text-sm font-extrabold tabular-nums" aria-label={`${hechas} de ${suyas.length} hechas`}>
-                      {hechas}/{suyas.length}
-                    </span>
-                  </header>
-                  <ul className="mt-2">
-                    {suyas.map((t) => (
-                      <TareaFila key={t.id} t={t} now={ahora} onAbrir={() => setAbiertoId(t.id)} />
-                    ))}
-                  </ul>
-                  <button type="button" className="boton-borde mt-2 w-full" onClick={() => setAsignarA(p)}>
-                    <Icon name="plus" size="sm" /> Asignar a {p.nombre.split(" ")[0]}
-                  </button>
-                </article>
-              )
-            })}
-          </div>
-        </section>
+          <p className="text-sm font-bold text-ink-muted">
+            Turno {turno.nombre.toLowerCase()} {hhmm(turno.inicio)}–{hhmm(turno.fin)} · {faltan(ahora).toLowerCase()}
+          </p>
+        </div>
+        <p className="mt-1 text-sm text-ink-muted">Cada fila es una persona y cada barra una actividad a su hora. La línea vertical marca este momento. Toca una barra para verla o el «+» para asignar.</p>
+        <GanttEquipo filas={filas} ahora={ahora} onAbrir={abrir} onAsignar={(id) => setAsignarA(equipo.find((p) => p.id === id) ?? null)} />
+        <LeyendaActividades porPuesto />
+      </section>
 
-        <aside className="space-y-3" aria-label="Lo que llega a tu estación">
+      <div className="vista-dos">
+        <div className="space-y-3">
           <h2 className="seccion-titulo flex items-center gap-2">
             <Icon name="ticket" /> Tickets de tu estación
           </h2>
@@ -321,6 +323,9 @@ export function VistaJefe({ ctx }: { ctx: Ctx }) {
               ))}
             </div>
           )}
+        </div>
+
+        <aside className="space-y-3" aria-label="Lo que llega a tu estación">
           <div className="tarjeta space-y-2">
             <h3 className="font-extrabold">También en tu estación</h3>
             <button type="button" className="opcion-grande" onClick={() => ir("estacion")}>

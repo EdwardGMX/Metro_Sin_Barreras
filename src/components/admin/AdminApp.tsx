@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import {
   cuentaVigente,
   estadoInicial,
-  gerenciaPorId,
   iniciarSesion,
   modulosVisibles,
   rolesTexto,
@@ -14,11 +13,11 @@ import {
   DOMINIO,
   INACTIVIDAD,
   ROLES,
-  TIPO_LABEL,
   type Cuenta,
   type EstadoConsola,
   type ModuloId,
   type Resultado,
+  type RolId,
   type SesionPersonal,
 } from "../../lib/admin"
 import { sembrarOperacion } from "../../lib/operacion"
@@ -26,14 +25,14 @@ import { sembrarServicio } from "../../lib/servicio"
 import { baseVacia, sembrarDemo, type BaseDatos } from "../../lib/reports"
 import { guardar, leer, borrar } from "../../lib/storage"
 import { Icon } from "../Icon"
-import { Bitacora, Contenidos, Cuentas, Datos, Modelos, ModeracionConsola, Plataforma, Privacidad } from "./Modulos"
-import { Infraestructura, Mantenimiento, MiEstacion, Rondas, Seguridad } from "./Operacion"
+import { ModeracionConsola } from "./Modulos"
+import { Mantenimiento, MiEstacion, Rondas, Seguridad } from "./Operacion"
 import { MiTablero } from "./Tablero"
 import { MiJornada } from "../vistas/MiJornada"
 import { MesaAtencion, ModuloTickets } from "../vistas/Tickets"
 import { VistaJefe } from "../vistas/VistaJefe"
 
-export const CLAVE_CONSOLA = "msb.consola.v3"
+export const CLAVE_CONSOLA = "msb.consola.v4"
 const CLAVE_SESION_PERSONAL = "msb.consola.sesion"
 const CLAVE_DB = "msb.db.v1"
 
@@ -49,18 +48,28 @@ export type Ctx = {
   ir: (m: ModuloId) => void
 }
 
-/** Vista de inicio propia de cada perfil operativo; los demás roles llegan a su tablero de indicadores. */
-type Inicio = { nombre: string; vista: "jefe" | "jornada" | "mesa" }
+/** Vista de inicio propia de cada perfil; sus indicadores quedan en el módulo «Indicadores». */
+type Inicio = { nombre: string; vista: "jefe" | "jornada" | "mesa" | "tickets" }
 export function inicioDe(c: Cuenta): Inicio | null {
   if (c.roles.includes("jefe_estacion")) return { nombre: "Mi estación hoy", vista: "jefe" }
   if (c.roles.includes("personal_seguridad") || c.roles.includes("personal_estacion")) return { nombre: "Mi jornada", vista: "jornada" }
-  if (c.roles.includes("moderacion") && c.tipo === "stc") return { nombre: "Mesa de atención", vista: "mesa" }
+  if (c.roles.includes("moderacion")) return { nombre: "Mesa de atención", vista: "mesa" }
+  if (c.roles.includes("mantenimiento")) return { nombre: "Tickets de mi área", vista: "tickets" }
   return null
 }
 
 function cargarEstado(): EstadoConsola {
   const guardado = leer<EstadoConsola | null>(CLAVE_CONSOLA, null)
   return guardado && Array.isArray(guardado.cuentas) ? guardado : estadoInicial(Date.now())
+}
+
+/** Color de identidad de cada perfil (el mismo de su vista). */
+const ROL_CLASE: Record<RolId, string> = {
+  jefe_estacion: "rol-jefe",
+  personal_seguridad: "rol-guardia",
+  personal_estacion: "rol-personal",
+  moderacion: "rol-mesa",
+  mantenimiento: "rol-mant",
 }
 
 export default function AdminApp() {
@@ -169,7 +178,9 @@ export default function AdminApp() {
     const home = inicioDe(cuenta)
     if (!home) return base
     // Su vista propia ocupa «inicio»; los indicadores siguen disponibles en su propio módulo.
-    return base.flatMap((m) => (m.id === "inicio" ? [{ ...m, nombre: home.nombre }, { id: "indicadores" as ModuloId, nombre: "Indicadores" }] : [m]))
+    return base
+      .filter((m) => !(home.vista === "tickets" && m.id === "tickets"))
+      .flatMap((m) => (m.id === "inicio" ? [{ ...m, nombre: home.nombre }, { id: "indicadores" as ModuloId, nombre: "Indicadores" }] : [m]))
   }, [cuenta, ahora])
   const ir = (m: ModuloId) => {
     setModulo(m)
@@ -261,8 +272,8 @@ export default function AdminApp() {
             <div className="text-left text-sm sm:text-right">
               <p className="font-extrabold">{cuenta.nombre}</p>
               <p className="text-xs text-ink-muted">
-                {rolesTexto(cuenta)} · {TIPO_LABEL[cuenta.tipo]}
-                {cuenta.vence ? ` · vence ${cuenta.vence}` : ""}
+                {rolesTexto(cuenta)}
+                {cuenta.estaciones?.length ? ` · ${cuenta.estaciones.join(", ")}` : ""}
               </p>
               <p className="text-xs text-ink-muted">La sesión se cierra tras {minutosRestantes} min sin actividad</p>
             </div>
@@ -303,22 +314,15 @@ export default function AdminApp() {
           {actual === "inicio" && inicio?.vista === "jefe" && <VistaJefe ctx={ctx} />}
           {actual === "inicio" && inicio?.vista === "jornada" && <MiJornada ctx={ctx} />}
           {actual === "inicio" && inicio?.vista === "mesa" && <MesaAtencion ctx={ctx} />}
+          {actual === "inicio" && inicio?.vista === "tickets" && <ModuloTickets ctx={ctx} />}
           {actual === "inicio" && !inicio && <MiTablero key={cuenta.id} ctx={ctx} />}
           {actual === "indicadores" && <MiTablero key={cuenta.id} ctx={ctx} />}
           {actual === "tickets" && <ModuloTickets ctx={ctx} />}
-          {actual === "infraestructura" && <Infraestructura ctx={ctx} />}
           {actual === "estacion" && <MiEstacion ctx={ctx} />}
           {actual === "rondas" && <Rondas ctx={ctx} />}
           {actual === "mantenimiento" && <Mantenimiento ctx={ctx} />}
           {actual === "seguridad" && <Seguridad ctx={ctx} />}
-          {actual === "cuentas" && <Cuentas ctx={ctx} />}
-          {actual === "plataforma" && <Plataforma ctx={ctx} />}
-          {actual === "datos" && <Datos ctx={ctx} />}
-          {actual === "modelos" && <Modelos ctx={ctx} />}
           {actual === "moderacion" && <ModeracionConsola ctx={ctx} />}
-          {actual === "privacidad" && <Privacidad ctx={ctx} />}
-          {actual === "contenidos" && <Contenidos ctx={ctx} />}
-          {actual === "bitacora" && <Bitacora ctx={ctx} />}
         </main>
       </div>
     </div>
@@ -355,7 +359,7 @@ function LoginPersonal({
     }
     setCorreo(c)
     const registrada = estado.cuentas.find((x) => x.correo.toLowerCase() === c.toLowerCase())
-    if (!registrada || !cuentaVigente(registrada, Date.now()).ok) {
+    if (!registrada || !cuentaVigente(registrada).ok) {
       setError(onIntento(c, true))
       return
     }
@@ -374,13 +378,6 @@ function LoginPersonal({
     }
   }
 
-  const grupos: Array<[string, Cuenta[]]> = [
-    ["Personal del STC: operación después de la entrega", estado.cuentas.filter((c) => c.tipo === "stc" && c.estado === "activa")],
-    ["Equipo del proyecto: soporte técnico y gobernanza durante el piloto", estado.cuentas.filter((c) => c.tipo === "interno" && c.estado === "activa")],
-    ["Especialistas externos (cuenta temporal)", estado.cuentas.filter((c) => c.tipo === "externo")],
-    ["Cliente", estado.cuentas.filter((c) => c.tipo === "cliente")],
-    ["Ejemplos de acceso denegado", estado.cuentas.filter((c) => c.estado === "suspendida")],
-  ]
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
@@ -477,37 +474,23 @@ function LoginPersonal({
           <h2 id="demo-titulo" className="text-lg font-extrabold">
             Cuentas de demostración
           </h2>
-          <p className="mt-1 text-sm text-ink-muted">Elige una para recorrer la consola con los permisos de ese rol.</p>
-          {grupos.map(([titulo, cuentas]) =>
-            cuentas.length ? (
-              <div key={titulo} className="mt-4">
-                <h3 className="text-xs font-extrabold uppercase tracking-widest text-ink-muted">{titulo}</h3>
-                <ul className="mt-2 space-y-2">
-                  {cuentas.map((c) => (
-                    <li key={c.id}>
-                      <button type="button" className="admin-account" onClick={() => continuar(undefined, c.correo)}>
-                        <span className="font-extrabold">{c.nombre}</span>
-                        <span className="text-xs text-ink-muted">
-                          {c.roles.map((r) => ROLES[r].nombre).join(" · ")}
-                          {c.estaciones?.length ? ` · ${c.estaciones.join(", ")}` : c.gerencia ? ` · ${gerenciaPorId(c.gerencia)?.nombre ?? ""}` : ""}
-                          {c.vence ? ` · vence ${c.vence}` : ""}
-                          {c.estado === "suspendida" ? " · suspendida" : ""}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                  {titulo.startsWith("Ejemplos") && (
-                    <li>
-                      <button type="button" className="admin-account" onClick={() => continuar(undefined, "persona.usuaria@gmail.com")}>
-                        <span className="font-extrabold">persona.usuaria@gmail.com</span>
-                        <span className="text-xs text-ink-muted">Cuenta no registrada: IAP la rechaza</span>
-                      </button>
-                    </li>
-                  )}
-                </ul>
-              </div>
-            ) : null,
-          )}
+          <p className="mt-1 text-sm text-ink-muted">Personal del STC (nombres ficticios). Cada cuenta abre la vista de su perfil.</p>
+          <ul className="mt-4 space-y-2">
+            {estado.cuentas
+              .filter((c) => c.estado === "activa")
+              .map((c) => (
+                <li key={c.id}>
+                  <button type="button" className={`admin-account cuenta-demo ${ROL_CLASE[c.roles[0]]}`} onClick={() => continuar(undefined, c.correo)}>
+                    <span className="cuenta-demo-vista">{inicioDe(c)?.nombre ?? "Mi tablero"}</span>
+                    <span className="font-extrabold">{c.nombre}</span>
+                    <span className="text-xs text-ink-muted">
+                      {c.roles.map((r) => ROLES[r].nombre).join(" · ")}
+                      {c.estaciones?.length ? ` · ${c.estaciones.join(", ")}` : ""}
+                    </span>
+                  </button>
+                </li>
+              ))}
+          </ul>
           <button type="button" className="secondary-button mt-5" onClick={onReiniciar}>
             Restaurar datos de demostración
           </button>

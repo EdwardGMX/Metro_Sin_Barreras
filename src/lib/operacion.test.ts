@@ -3,7 +3,7 @@
  * verificación en sitio, órdenes de mantenimiento, incidentes y solicitudes de apoyo.
  */
 import { describe, expect, it } from "vitest"
-import { alcanzaEstacion, altaCuenta, estacionesVisibles, estadoInicial, gerenciasDeEstacion, modulosVisibles, puede, DOMINIO, type Cuenta, type EstadoConsola, type Resultado } from "./admin"
+import { alcanzaEstacion, estacionesVisibles, estadoInicial, gerenciasDeEstacion, modulosVisibles, puede, type Cuenta, type EstadoConsola, type Resultado } from "./admin"
 import {
   asignarIncidente,
   asignarResponsable,
@@ -42,27 +42,18 @@ describe("roles operativos: cada uno ve solo lo suyo", () => {
   it("cada rol operativo tiene módulos distintos", () => {
     const { e } = preparar()
     const mods = (id: string) => modulosVisibles(c(e, id), AHORA).map((m) => m.id)
-    expect(mods("C-OPER")).toEqual(["inicio", "infraestructura", "rondas", "mantenimiento", "tickets"])
     expect(mods("C-JE-TAC")).toEqual(["inicio", "estacion", "rondas", "tickets"])
     expect(mods("C-PE-TAC")).toEqual(["inicio", "estacion", "rondas", "tickets"])
     expect(mods("C-MANT")).toEqual(["inicio", "mantenimiento", "tickets"])
-    expect(mods("C-JSEG")).toEqual(["inicio", "seguridad", "tickets"])
     expect(mods("C-SEG-TAC")).toEqual(["inicio", "seguridad", "tickets"])
+    expect(mods("C-MESA")).toEqual(["inicio", "tickets", "moderacion"])
   })
-  it("ningún rol operativo ve fotos ni la bitácora", () => {
+  it("solo la Mesa ve fotos y la cola de moderación", () => {
     const { e } = preparar()
-    for (const id of ["C-OPER", "C-JE-TAC", "C-PE-TAC", "C-MANT", "C-JSEG", "C-SEG-TAC"]) {
+    for (const id of ["C-JE-TAC", "C-PE-TAC", "C-MANT", "C-SEG-TAC"]) {
       expect(puede(c(e, id), "evidencias.ver", AHORA)).toBe(false)
-      expect(puede(c(e, id), "bitacora.ver", AHORA)).toBe(false)
+      expect(puede(c(e, id), "moderacion.ver", AHORA)).toBe(false)
     }
-  })
-  it("los roles de estación requieren estación y quien repara no confirma su reparación (RN9)", () => {
-    const { e } = preparar()
-    const pedro = c(e, "C-PEDRO")
-    const base = { nombre: "Persona nueva", correo: `nueva@${DOMINIO}`, puesto: "x", tipo: "stc" as const }
-    expect(altaCuenta(e, pedro, { ...base, roles: ["personal_estacion"] }, AHORA).ok).toBe(false)
-    expect(altaCuenta(e, pedro, { ...base, roles: ["personal_estacion", "mantenimiento"], estaciones: ["Zapata"] }, AHORA).ok).toBe(false)
-    expect(altaCuenta(e, pedro, { ...base, roles: ["personal_estacion"], estaciones: ["Zapata"] }, AHORA).ok).toBe(true)
   })
 })
 
@@ -143,12 +134,11 @@ describe("solicitudes de apoyo e incidentes", () => {
     expect(r.ok).toBe(true)
     expect(op(db).incidentes[0]).toMatchObject({ station: "Zapata", estado: "abierta", origen: "persona_usuaria" })
   })
-  it("el jefe de estación asigna y el personal atiende; seguridad solo asigna policía", () => {
+  it("el jefe de estación asigna y el personal atiende", () => {
     const { e, db } = preparar()
     const ap = op(db).incidentes.find((x) => x.id === "AP-0101")!
     const jorge = personasDe(op(db), "Tacubaya").find((p) => p.cuentaId === "C-PE-TAC")!
     expect(asignarIncidente(db, e, c(e, "C-SEG-TAC"), ap.id, jorge.id, AHORA).ok).toBe(false)
-    expect(asignarIncidente(db, e, c(e, "C-JSEG"), ap.id, jorge.id, AHORA).ok).toBe(false)
     expect(asignarIncidente(db, e, c(e, "C-JE-TAC"), ap.id, jorge.id, AHORA).ok).toBe(true)
     expect(avanzarIncidente(db, e, c(e, "C-PE-TAC"), ap.id, "en_camino", "", AHORA + 60_000).ok).toBe(true)
     expect(avanzarIncidente(db, e, c(e, "C-PE-TAC"), ap.id, "atendida", "Acompañada al andén", AHORA + 300_000).ok).toBe(true)
@@ -161,30 +151,23 @@ describe("solicitudes de apoyo e incidentes", () => {
   })
 })
 
-describe("coordinación por gerencia de líneas (Estatuto Orgánico del STC)", () => {
-  it("cada gerencia ve solo las estaciones del piloto de sus líneas", () => {
+describe("alcance por estación (Estatuto Orgánico del STC)", () => {
+  it("las cuentas de estación solo ven la suya; la Mesa y Mantenimiento, toda la red", () => {
     const { e } = preparar()
-    expect(estacionesVisibles(c(e, "C-OPER"), ESTACIONES_PILOTO)).toEqual(["Tacubaya", "Pantitlán", "Hidalgo", "Balderas", "Zapata"])
-    expect(estacionesVisibles(c(e, "C-OPER-2"), ESTACIONES_PILOTO)).toEqual(["Pantitlán", "Hidalgo"])
-    expect(estacionesVisibles(c(e, "C-OPER-3"), ESTACIONES_PILOTO)).toEqual(["Tacubaya", "Pantitlán"])
-    expect(alcanzaEstacion(c(e, "C-OPER-2"), "Zapata")).toBe(false)
+    expect(estacionesVisibles(c(e, "C-JE-TAC"), ESTACIONES_PILOTO)).toEqual(["Tacubaya"])
+    expect(estacionesVisibles(c(e, "C-JE-PAN"), ESTACIONES_PILOTO)).toEqual(["Pantitlán"])
+    expect(alcanzaEstacion(c(e, "C-SEG-TAC"), "Zapata")).toBe(false)
+    expect(estacionesVisibles(c(e, "C-MESA"), ESTACIONES_PILOTO)).toEqual(ESTACIONES_PILOTO)
   })
   it("una estación depende de la gerencia de cada línea que la atiende", () => {
     expect(gerenciasDeEstacion("Pantitlán").map((g) => g.id)).toEqual(["GL-1", "GL-2", "GL-3"])
     expect(gerenciasDeEstacion("Hidalgo").map((g) => g.id)).toEqual(["GL-1", "GL-2"])
     expect(gerenciasDeEstacion("Zapata").map((g) => g.id)).toEqual(["GL-1"])
   })
-  it("una coordinación no puede darse de alta sin gerencia", () => {
-    const { e } = preparar()
-    const pedro = c(e, "C-PEDRO")
-    const base = { nombre: "Coordinación nueva", correo: `coord.nueva@${DOMINIO}`, puesto: "Coordinación", tipo: "stc" as const, roles: ["operacion" as const] }
-    expect(altaCuenta(e, pedro, base, AHORA).ok).toBe(false)
-    expect(altaCuenta(e, pedro, { ...base, gerencia: "GL-3" }, AHORA).ok).toBe(true)
-  })
-  it("una coordinación no programa rondas fuera de sus líneas", () => {
+  it("un jefe de estación no programa rondas de otra estación", () => {
     const { e, db } = preparar()
     const ana = personasDe(op(db), "Zapata")[0]
-    expect(codigo(asignarResponsable(db, e, c(e, "C-OPER-2"), "Zapata", "09:00", ana.id, AHORA))).toBe(403)
+    expect(codigo(asignarResponsable(db, e, c(e, "C-JE-TAC"), "Zapata", "09:00", ana.id, AHORA))).toBe(403)
   })
 })
 
@@ -208,11 +191,11 @@ describe("protocolo de persona atrapada", () => {
     const id = atrapada(e, db, "Tacubaya")
     expect(codigo(marcarPasoProtocolo(db, e, c(e, "C-JE-PAN"), id, "personal", true, AHORA))).toBe(403)
     expect(codigo(marcarPasoProtocolo(db, e, c(e, "C-PE-TAC"), id, "personal", true, AHORA))).toBe(403)
-    expect(marcarPasoProtocolo(db, e, c(e, "C-JSEG"), id, "personal", true, AHORA).ok).toBe(true)
+    expect(marcarPasoProtocolo(db, e, c(e, "C-JE-TAC"), id, "personal", true, AHORA).ok).toBe(true)
   })
   it("solo aplica a una persona atrapada", () => {
     const { e, db } = preparar()
     const otro = op(db).incidentes.find((x) => x.tipo !== "persona_atrapada" && x.estado !== "atendida" && x.estado !== "cancelada")!
-    expect(codigo(marcarPasoProtocolo(db, e, c(e, "C-JSEG"), otro.id, "personal", true, AHORA))).toBe(400)
+    expect(codigo(marcarPasoProtocolo(db, e, c(e, otro.station === "Pantitlán" ? "C-JE-PAN" : "C-JE-TAC"), otro.id, "personal", true, AHORA))).toBe(400)
   })
 })

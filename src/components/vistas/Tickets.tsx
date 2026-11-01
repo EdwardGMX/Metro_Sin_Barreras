@@ -669,7 +669,7 @@ export function ModuloTickets({ ctx }: { ctx: Ctx }) {
   const [pestana, setPestana] = useState<Pestana>(opciones[0].id)
   const [abiertoId, setAbiertoId] = useState<string | null>(null)
   const [levantar, setLevantar] = useState(false)
-  const perfil: Perfil = cuenta.roles.includes("moderacion") ? "mesa" : cuenta.roles.includes("jefe_estacion") ? "jefe" : cuenta.roles.includes("personal_seguridad") ? "guardia" : cuenta.roles.includes("personal_estacion") ? "personal" : "usuario"
+  const perfil: Perfil = cuenta.roles.includes("moderacion") ? "mesa" : cuenta.roles.includes("jefe_estacion") ? "jefe" : cuenta.roles.includes("personal_seguridad") ? "guardia" : cuenta.roles.includes("personal_estacion") ? "personal" : "mant"
   const lista = pestana === "area" ? deArea : pestana === "mios" ? mios : levantados
 
   return (

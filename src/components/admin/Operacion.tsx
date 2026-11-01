@@ -1,17 +1,15 @@
 /**
- * Módulos de la operación en las estaciones (HU-31 a HU-37): infraestructura, mi estación,
+ * Módulos de la operación en las estaciones (HU-31 a HU-37): mi estación,
  * rondas de revisión, mantenimiento y seguridad. Cada acción queda en la bitácora.
  */
-import { useMemo, useState, type FormEvent } from "react"
-import { equipoPorId, equiposDeEstacion, todosLosEquipos } from "../../data/accessibility"
-import { metroLines } from "../../data/metroData"
-import { alcanceTexto, alcanzaEstacion, estacionesVisibles, gerenciaPorId, gerenciasDeEstacion, puede } from "../../lib/admin"
+import { useState, type FormEvent } from "react"
+import { equipoPorId, equiposDeEstacion } from "../../data/accessibility"
+import { alcanzaEstacion, estacionesVisibles, gerenciasDeEstacion, puede } from "../../lib/admin"
 import {
   asignarIncidente,
   asignarResponsable,
   avanzarIncidente,
   crearOrden,
-  cumplimientoPorResponsable,
   etiquetaSlot,
   marcarPasoProtocolo,
   operacionDe,
@@ -19,7 +17,6 @@ import {
   personaPorId,
   personasDe,
   programaDe,
-  recurrentes,
   registrarIncidente,
   registrarRonda,
   reportesPorVerificar,
@@ -89,198 +86,6 @@ const estacionesDe = (ctx: Ctx) => {
 }
 
 /* ------------------------------------------------------------------ */
-/* Infraestructura (vista de administrador)                            */
-/* ------------------------------------------------------------------ */
-
-export function Infraestructura({ ctx }: { ctx: Ctx }) {
-  const { db, ahora, cuenta } = ctx
-  const op = operacionDe(db)
-  const [linea, setLinea] = useState("todas")
-  const gerencia = gerenciaPorId(cuenta.gerencia)
-  const lineasVisibles = metroLines.filter((l) => !gerencia || gerencia.lineas.includes(l.id))
-  const estaciones = estacionesDe(ctx)
-  const equipos = useMemo(() => todosLosEquipos.filter((eq) => alcanzaEstacion(cuenta, eq.station)).map((eq) => ({ eq, ...estadoEquipo(db, eq.id, ahora) })), [db, ahora, cuenta])
-  const enLinea = (station: string) => linea === "todas" || metroLines.find((l) => l.id === linea)?.stations.includes(station)
-  const conFalla = equipos.filter((x) => x.estado !== "disponible" && enLinea(x.eq.station))
-  const porVerificar = reportesPorVerificar(db, estaciones, ahora)
-  const resp = cumplimientoPorResponsable(op, estaciones, 7, ahora)
-  const rec = recurrentes(op, 30, ahora).filter((x) => alcanzaEstacion(cuenta, equipoPorId(x.equipmentId)?.station ?? ""))
-
-  return (
-    <>
-      <Encabezado eyebrow={gerencia ? `Coordinación · ${gerencia.nombre}` : "Coordinación de gerencia de líneas"} titulo="Estado de la infraestructura">
-        Elevadores, salvaescaleras y escaleras eléctricas de {gerencia ? `las líneas ${gerencia.lineas.join(", ")}` : "toda la red"}, con lo que reportan el personal de las estaciones, mantenimiento y las personas usuarias. No muestra datos de personas.
-      </Encabezado>
-
-      <Tarjeta titulo={`Estaciones del piloto en tus líneas (${estaciones.length})`}>
-        <div className="table-wrap" tabIndex={0} role="region" aria-label="Estaciones del piloto">
-          <table className="admin-table">
-            <caption className="sr-only">Estado de equipos, rondas, órdenes y reportes por estación del piloto</caption>
-            <thead>
-              <tr>
-                <th scope="col">Estación</th>
-                <th scope="col">Equipos funcionando</th>
-                <th scope="col">Rondas de hoy</th>
-                <th scope="col">Órdenes abiertas</th>
-                <th scope="col">Reportes sin verificar</th>
-                <th scope="col">Apoyos abiertos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {estaciones.map((s) => {
-                const eqs = equipos.filter((x) => x.eq.station === s)
-                const ok = eqs.filter((x) => x.estado === "disponible").length
-                const rondas = rondasDelDia(op, s, ahora, ahora)
-                const atrasadas = rondas.filter((r) => r.estado === "atrasada").length
-                const hechas = rondas.filter((r) => r.registro).length
-                const ordenes = op.ordenes.filter((o) => o.station === s && o.estado !== "resuelta")
-                const pv = porVerificar.filter((p) => p.station === s).length
-                const apoyos = op.incidentes.filter((x) => x.station === s && x.estado !== "atendida" && x.estado !== "cancelada").length
-                return (
-                  <tr key={s}>
-                    <th scope="row">{s}</th>
-                    <td>
-                      <Estado tono={ok === eqs.length ? "ok" : eqs.some((x) => x.estado === "fuera_servicio") ? "bad" : "warn"}>
-                        {ok} de {eqs.length}
-                      </Estado>
-                    </td>
-                    <td>
-                      <Estado tono={atrasadas ? "bad" : "ok"}>
-                        {hechas} de {SLOTS.length}
-                        {atrasadas ? ` · ${atrasadas} atrasada` : ""}
-                      </Estado>
-                    </td>
-                    <td>{ordenes.length ? ordenes.map((o) => `${o.id} (${o.estado === "en_atencion" ? "en atención" : "sin tomar"})`).join(", ") : "—"}</td>
-                    <td>{pv ? <Estado tono="warn">{pv}</Estado> : "0"}</td>
-                    <td>{apoyos ? <Estado tono="warn">{apoyos}</Estado> : "0"}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Tarjeta>
-
-      <div className="mt-5">
-        <Tarjeta
-          titulo={`Equipos con falla (${conFalla.length})`}
-          accion={
-            <div className="flex items-center gap-2">
-              <label htmlFor="filtro-linea" className="text-sm font-bold">
-                Línea
-              </label>
-              <select id="filtro-linea" className="field-select min-h-10 w-auto" value={linea} onChange={(e) => setLinea(e.target.value)}>
-                <option value="todas">{gerencia ? "Todas mis líneas" : "Todas"}</option>
-                {lineasVisibles.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    Línea {l.id}
-                  </option>
-                ))}
-              </select>
-            </div>
-          }
-        >
-          {conFalla.length === 0 ? (
-            <p className="text-sm text-ink-muted">Todos los equipos funcionan.</p>
-          ) : (
-            <div className="table-wrap" tabIndex={0} role="region" aria-label="Equipos con falla">
-              <table className="admin-table">
-                <caption className="sr-only">Equipos fuera de servicio o con fallas, con su fuente</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Equipo</th>
-                    <th scope="col">Estación</th>
-                    <th scope="col">Estado</th>
-                    <th scope="col">Fuente</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {conFalla.map((x) => (
-                    <tr key={x.eq.id}>
-                      <th scope="row">
-                        {x.eq.tipo}
-                        <span className="block text-xs font-normal text-ink-muted">{x.eq.ubicacion}</span>
-                      </th>
-                      <td>{x.eq.station}</td>
-                      <td>
-                        <Estado tono={TONO_EQUIPO[x.estado]}>{TEXTO_EQUIPO[x.estado]}</Estado>
-                      </td>
-                      <td className="text-sm">{x.fuente}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Tarjeta>
-      </div>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <Tarjeta titulo="Quién da las rondas (últimos 7 días)">
-          <div className="table-wrap" tabIndex={0} role="region" aria-label="Cumplimiento por responsable">
-            <table className="admin-table">
-              <caption className="sr-only">Rondas asignadas y cumplidas por persona responsable</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Persona</th>
-                  <th scope="col">Estación</th>
-                  <th scope="col">A tiempo</th>
-                  <th scope="col">Fuera de tiempo</th>
-                  <th scope="col">Sin registrar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resp.map((f) => (
-                  <tr key={f.persona.id}>
-                    <th scope="row">
-                      {f.persona.nombre}
-                      <span className="block text-xs font-normal text-ink-muted">{f.persona.puesto}</span>
-                    </th>
-                    <td>{f.persona.station}</td>
-                    <td>
-                      <Estado tono={f.aTiempo / f.programadas >= 0.95 ? "ok" : "warn"}>
-                        {f.aTiempo} de {f.programadas}
-                      </Estado>
-                    </td>
-                    <td>{f.tarde}</td>
-                    <td>{f.omitidas ? <Estado tono="bad">{f.omitidas}</Estado> : "0"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-3 text-xs text-ink-muted">El programa de rondas y sus responsables se cambia en «Rondas de revisión».</p>
-        </Tarjeta>
-        <Tarjeta titulo="Fallas recurrentes (30 días)">
-          {rec.length === 0 ? (
-            <p className="text-sm text-ink-muted">Ningún equipo con tres o más órdenes.</p>
-          ) : (
-            <ul className="space-y-2">
-              {rec.map((x) => {
-                const eq = equipoPorId(x.equipmentId)
-                const ords = op.ordenes.filter((o) => o.equipmentId === x.equipmentId)
-                return (
-                  <li key={x.equipmentId} className="report-item">
-                    <p className="font-extrabold">
-                      {eq?.tipo} · {eq?.station}
-                    </p>
-                    <p className="text-sm text-ink-muted">{eq?.ubicacion}</p>
-                    <p className="mt-1 text-sm">
-                      {x.n} órdenes: {ords.map((o) => `${o.id}${o.nota ? ` (${o.nota.toLowerCase()})` : ""}`).join("; ")}
-                    </p>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-          <p className="mt-3 text-xs text-ink-muted">Tres o más órdenes en 30 días piden un análisis de causa con mantenimiento, no solo otra reparación.</p>
-        </Tarjeta>
-      </div>
-    </>
-  )
-}
-
-/* ------------------------------------------------------------------ */
 /* Rondas de revisión                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -301,7 +106,7 @@ export function Rondas({ ctx }: { ctx: Ctx }) {
 
   return (
     <>
-      <Encabezado eyebrow={esJefe ? "Jefe(a) de estación" : registra ? "Personal de estación" : `Coordinación · ${alcanceTexto(cuenta)}`} titulo={`Rondas de revisión · ${station}`}>
+      <Encabezado eyebrow={esJefe ? "Jefe(a) de estación" : "Personal de estación"} titulo={`Rondas de revisión · ${station}`}>
         Cinco rondas al día: antes de abrir y a las 9:00, 13:00, 17:00 y 21:00. Quien la da revisa cada elevador, salvaescaleras y escalera eléctrica; una falla crea la orden de mantenimiento y las rutas dejan de usar el equipo. Se registra dentro de 45 minutos de su hora (RN10).
       </Encabezado>
       <SelectorEstacion estaciones={estaciones} valor={station} onChange={setStation} />
@@ -391,7 +196,7 @@ export function Rondas({ ctx }: { ctx: Ctx }) {
               </table>
             </div>
             <p className="mt-3 text-xs text-ink-muted">
-              {programa ? "Cada cambio queda en la bitácora. El personal solo registra sus rondas; el jefe de estación puede cubrir cualquiera." : "Lo define el jefe de estación o la administración de la operación."}
+              {programa ? "Cada cambio queda en la bitácora. El personal solo registra sus rondas; el jefe de estación puede cubrir cualquiera." : "Lo define el jefe de estación."}
             </p>
           </Tarjeta>
 
@@ -593,7 +398,6 @@ function IncidenteItem({ ctx, x, puedeAsignar }: { ctx: Ctx; x: Incidente; puede
   const ORDEN_PUESTO: Record<Puesto, number> = { "Personal de estación": 0, "Policía auxiliar": 1, "Jefe(a) de estación": 2, "Personal de limpieza": 3 }
   const candidatos = personasDe(op, x.station)
     .filter((p) => p.puesto !== "Personal de limpieza")
-    .filter((p) => !cuenta.roles.includes("jefe_seguridad") || p.puesto === "Policía auxiliar")
     .sort((a, b) => ORDEN_PUESTO[a.puesto] - ORDEN_PUESTO[b.puesto])
   const [quien, setQuien] = useState(x.asignadoA ?? candidatos[0]?.id ?? "")
   const [cierre, setCierre] = useState("")
@@ -689,7 +493,7 @@ function ProtocoloAtrapada({ ctx, x }: { ctx: Ctx; x: Incidente }) {
           )
         })}
       </ul>
-      {!conduce && <p className="mt-2 text-xs text-ink-muted">Lo conduce el jefe de estación o la Gerencia de Seguridad Institucional.</p>}
+      {!conduce && <p className="mt-2 text-xs text-ink-muted">Lo conduce el jefe de estación.</p>}
     </fieldset>
   )
 }
@@ -832,7 +636,7 @@ export function Mantenimiento({ ctx }: { ctx: Ctx }) {
 
   return (
     <>
-      <Encabezado eyebrow={atiende ? "Mantenimiento electromecánico" : `Coordinación · ${alcanceTexto(cuenta)}`} titulo="Órdenes de mantenimiento">
+      <Encabezado eyebrow="Mantenimiento electromecánico" titulo="Órdenes de mantenimiento">
         Se crean solas cuando una ronda o una verificación en sitio encuentra una falla, o las envía el jefe de estación. Prioridad alta para elevadores y salvaescaleras (24 h); media para escaleras eléctricas (72 h). Al cerrar, el personal de la estación confirma la reparación en su siguiente ronda: quien repara no la confirma (RN9).
       </Encabezado>
       {!atiende && (
@@ -909,23 +713,22 @@ export function Mantenimiento({ ctx }: { ctx: Ctx }) {
 export function Seguridad({ ctx }: { ctx: Ctx }) {
   const { db, ahora, cuenta } = ctx
   const op = operacionDe(db)
-  const jefe = cuenta.roles.includes("jefe_seguridad")
   const yo = personaDeCuenta(op, cuenta)
   const visibles = op.incidentes.filter((x) => alcanzaEstacion(cuenta, x.station))
   const abiertos = visibles.filter((x) => x.estado !== "atendida" && x.estado !== "cancelada").sort((a, b) => (a.estado === "abierta" ? -1 : 0) - (b.estado === "abierta" ? -1 : 0) || a.ts - b.ts)
   const mios = abiertos.filter((x) => x.asignadoA === yo.id)
-  const otros = jefe ? abiertos : abiertos.filter((x) => x.asignadoA !== yo.id)
-  const sat = saturacionProxima(ahora, jefe ? ESTACIONES_PILOTO : cuenta.estaciones ?? ESTACIONES_PILOTO)
+  const otros = abiertos.filter((x) => x.asignadoA !== yo.id)
+  const sat = saturacionProxima(ahora, cuenta.estaciones ?? ESTACIONES_PILOTO)
   const recientes = visibles.filter((x) => x.estado === "atendida" && ahora - (x.atendida ?? 0) < 24 * HORA)
 
   return (
     <>
-      <Encabezado eyebrow={jefe ? "Jefe(a) de seguridad" : "Personal de seguridad"} titulo="Seguridad y apoyo">
-        Incidentes y solicitudes de apoyo de personas con movilidad limitada. {jefe ? "Asigna al personal de seguridad de cada estación y anticipa dónde hará falta por la saturación." : "Atiende lo que tienes asignado; marca cuando vas en camino y cuando terminas."}
+      <Encabezado eyebrow="Personal de seguridad" titulo="Seguridad y apoyo">
+        Incidentes y solicitudes de apoyo de personas con movilidad limitada. {"Atiende lo que tienes asignado; marca cuando vas en camino y cuando terminas."}
       </Encabezado>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="grid content-start gap-5">
-          {!jefe && (
+          {(
             <Tarjeta titulo={`Tus asignaciones (${mios.length})`}>
               {mios.length === 0 && <p className="text-sm text-ink-muted">No tienes asignaciones activas.</p>}
               <ul className="space-y-3">
@@ -935,11 +738,11 @@ export function Seguridad({ ctx }: { ctx: Ctx }) {
               </ul>
             </Tarjeta>
           )}
-          <Tarjeta titulo={jefe ? `Abiertos en las estaciones del piloto (${abiertos.length})` : `Otros abiertos en tu estación (${otros.length})`}>
+          <Tarjeta titulo={`Otros abiertos en tu estación (${otros.length})`}>
             {otros.length === 0 && <p className="text-sm text-ink-muted">Nada abierto.</p>}
             <ul className="space-y-3">
               {otros.map((x) => (
-                <IncidenteItem key={x.id} ctx={ctx} x={x} puedeAsignar={jefe} />
+                <IncidenteItem key={x.id} ctx={ctx} x={x} puedeAsignar={false} />
               ))}
             </ul>
           </Tarjeta>

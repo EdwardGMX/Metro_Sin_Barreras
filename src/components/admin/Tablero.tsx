@@ -3,8 +3,8 @@
  * sus indicadores con meta y semáforo, sus gráficas y lo que debe atender hoy.
  */
 import { useMemo, useRef, useState, type FocusEvent, type PointerEvent, type ReactNode } from "react"
-import { ACCIONES_FINALES, ORDEN_ROLES, PERMISO_LABEL, ROLES, ROLES_INCOMPATIBLES, modulosVisibles, permisosDe, type ModuloId, type RolId } from "../../lib/admin"
-import { muestraRutas, tableroDe, PREGUNTAS, type Accion, type Barra, type EstadoCelda, type Grafica, type Indicador, type Tono } from "../../lib/tableros"
+import { ORDEN_ROLES, PERMISO_LABEL, ROLES, ROLES_INCOMPATIBLES, modulosVisibles, permisosDe, type ModuloId, type RolId } from "../../lib/admin"
+import { tableroDe, PREGUNTAS, type Accion, type Barra, type EstadoCelda, type Grafica, type Indicador, type Tono } from "../../lib/tableros"
 import { Icon } from "../Icon"
 import type { Ctx } from "./AdminApp"
 import { Encabezado, Tarjeta } from "./Modulos"
@@ -391,7 +391,7 @@ function VistaGrafica({ g }: { g: Grafica }) {
 /* ------------------------------------------------------------------ */
 
 function Acciones({ acciones, visibles, ir, soloLectura }: { acciones: Accion[]; visibles: Set<ModuloId>; ir: Ctx["ir"]; soloLectura: boolean }) {
-  const nombreModulo: Partial<Record<ModuloId, string>> = { cuentas: "Cuentas", plataforma: "Plataforma", datos: "Datos", modelos: "Modelos", moderacion: "Moderación", privacidad: "Privacidad", contenidos: "Contenidos", bitacora: "Bitácora" }
+  const nombreModulo: Partial<Record<ModuloId, string>> = { moderacion: "Moderación", tickets: "Tickets", estacion: "Mi estación", rondas: "Rondas", mantenimiento: "Mantenimiento", seguridad: "Seguridad y apoyo" }
   return (
     <Tarjeta titulo={soloLectura ? "Hallazgos para dar seguimiento" : "Qué atender hoy"}>
       {acciones.length === 0 ? (
@@ -430,28 +430,17 @@ export function MiTablero({ ctx }: { ctx: Ctx }) {
   const [elegido, setElegido] = useState<RolId>(roles[0])
   const rol = roles.includes(elegido) ? elegido : roles[0]
   const minuto = Math.floor(ahora / 60_000)
-  const dia = new Date(ahora).toDateString()
-  // La muestra de rutas solo se recalcula si cambian los reportes o el día.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const muestra = useMemo(() => (roles.includes("supervision") ? muestraRutas(db, ahora) : undefined), [db, dia, roles.join()])
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const tablero = useMemo(() => tableroDe(rol, { estado, db, ahora, cuenta }, muestra), [rol, estado, db, minuto, cuenta, muestra])
+  const tablero = useMemo(() => tableroDe(rol, { estado, db, ahora, cuenta }), [rol, estado, db, minuto, cuenta])
   const visibles = new Set(modulosVisibles(cuenta, ahora).map((m) => m.id))
   const permisos = permisosDe(cuenta, ahora)
-  const soloLectura = rol === "supervision"
+  const soloLectura = false
 
   return (
     <>
       <Encabezado eyebrow={`Mi tablero · ${ROLES[rol].nombre}`} titulo={`Hola, ${cuenta.nombre.split(" ")[0]}`}>
         {ROLES[rol].descripcion} Este tablero solo muestra lo que tu función necesita; las personas usuarias no tienen cuenta aquí.
       </Encabezado>
-
-      {cuenta.tipo === "externo" && (
-        <p className="callout callout-warning mt-0 mb-4">
-          <Icon name="clock" size="sm" className="mt-0.5" />
-          Cuenta de especialista externo: vence el {cuenta.vence}. Puedes consultar y proponer; las acciones finales las ejecuta una persona del equipo.
-        </p>
-      )}
 
       {roles.length > 1 && (
         <div className="role-switch" role="group" aria-label="Elegir el tablero de uno de tus roles">
@@ -511,7 +500,7 @@ export function MiTablero({ ctx }: { ctx: Ctx }) {
                       ))}
                   </ul>
                   <ul className="space-y-1.5 text-sm" aria-label="No puedes">
-                    {[...ROLES[r].noPuede, ...(cuenta.tipo === "externo" ? ROLES[r].permisos.filter((p) => ACCIONES_FINALES.includes(p)).map((p) => PERMISO_LABEL[p]) : [])].map((x) => (
+                    {ROLES[r].noPuede.map((x) => (
                       <li key={x} className="flex gap-2">
                         <Icon name="x" size="sm" className="mt-0.5 shrink-0 text-danger" />
                         {x}
@@ -526,41 +515,32 @@ export function MiTablero({ ctx }: { ctx: Ctx }) {
 
         <details className="admin-details">
           <summary>Quién tiene acceso a la consola</summary>
-          <p className="mt-3 mb-3 text-sm text-ink-muted">Trece roles: los de operación son el personal del STC que usa la consola cada día; los de soporte mantienen la plataforma, los datos, el modelo y la privacidad. Una persona puede tener más de un rol si no son incompatibles.</p>
+          <p className="mt-3 mb-3 text-sm text-ink-muted">Cinco roles, todos del personal del STC que opera el servicio cada día. Una persona puede tener más de un rol si no son incompatibles.</p>
           <div className="table-wrap" tabIndex={0} role="region" aria-label="Roles de la consola">
             <table className="admin-table">
-              <caption className="sr-only">Roles de la consola, quién los ocupa en el piloto, después de la entrega y de qué unidad del STC dependen</caption>
+              <caption className="sr-only">Roles de la consola, quién los ocupa y de qué unidad del STC dependen</caption>
               <thead>
                 <tr>
                   <th scope="col">Rol</th>
-                  <th scope="col">En el piloto</th>
-                  <th scope="col">Después de la entrega</th>
+                  <th scope="col">Quién lo ocupa</th>
                   <th scope="col">Unidad del STC (Estatuto Orgánico)</th>
                   <th scope="col">Su tablero responde</th>
                 </tr>
               </thead>
-              {(["operacion", "soporte"] as const).map((grupo) => (
-                <tbody key={grupo}>
-                  <tr>
-                    <th scope="colgroup" colSpan={5} className="bg-surface text-xs font-extrabold uppercase tracking-wide">
-                      {grupo === "operacion" ? "Operación del STC (después de la entrega)" : "Soporte técnico y gobernanza"}
-                    </th>
+              <tbody>
+                {ORDEN_ROLES.map((r) => (
+                  <tr key={r} className={cuenta.roles.includes(r) ? "bg-brand-soft" : undefined}>
+                    <th scope="row">{ROLES[r].nombre}</th>
+                    <td>{ROLES[r].operacion}</td>
+                    <td>{ROLES[r].unidad}</td>
+                    <td>{PREGUNTAS[r]}</td>
                   </tr>
-                  {ORDEN_ROLES.filter((r) => ROLES[r].grupo === grupo).map((r) => (
-                    <tr key={r} className={cuenta.roles.includes(r) ? "bg-brand-soft" : undefined}>
-                      <th scope="row">{ROLES[r].nombre}</th>
-                      <td>{ROLES[r].piloto}</td>
-                      <td>{ROLES[r].operacion}</td>
-                      <td>{ROLES[r].unidad}</td>
-                      <td>{PREGUNTAS[r]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              ))}
+                ))}
+              </tbody>
             </table>
           </div>
           <p className="mt-3 text-xs text-ink-muted">
-            No tienen cuenta: las personas usuarias y acompañantes, el personal de estaciones (usa la app pública), la persona investigadora UX y la intérprete de Lengua de Señas Mexicana. Incompatibles:{" "}
+            No tienen cuenta: las personas usuarias y sus acompañantes (entran a la app pública con Llave CDMX). Incompatibles:{" "}
             {ROLES_INCOMPATIBLES.map(([a, b]) => `${ROLES[a].nombre} con ${ROLES[b].nombre}`).join("; ")}. Unidades según el Estatuto Orgánico del STC (Gaceta Oficial de la CDMX, 17/09/2024).
           </p>
         </details>

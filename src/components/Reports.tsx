@@ -25,9 +25,7 @@ import { Dialog } from "./ui"
 export type Sesion = { seudonimo: string; nivel: "Llave" | "Llave Verificada"; expira: number; nombre?: string }
 
 export const CUENTAS_PRUEBA: Array<{ sub: string; nombre: string; persona: string; nivel: Sesion["nivel"] }> = [
-  { sub: "usuario-prueba-1", nombre: "Cuenta de prueba 1", persona: "Luis Ángel Pérez Soto", nivel: "Llave" },
-  { sub: "usuario-prueba-2", nombre: "Cuenta de prueba 2", persona: "Ana Lucía Ramírez Ortega", nivel: "Llave Verificada" },
-  { sub: "usuario-prueba-3", nombre: "Cuenta de prueba 3", persona: "María Fernanda Ruiz Cano", nivel: "Llave" },
+  { sub: "usuario-prueba-2", nombre: "Cuenta de prueba", persona: "Ana Lucía Ramírez Ortega", nivel: "Llave Verificada" },
 ]
 
 /** Inicio de sesión simulado (OIDC): solo se conservan el seudónimo y el nivel; el identificador original se descarta (RF-19). */

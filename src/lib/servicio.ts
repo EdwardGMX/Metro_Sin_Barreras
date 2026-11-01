@@ -58,7 +58,7 @@ export const AREAS: Record<AreaId, Area> = {
     id: "seguridad",
     nombre: "Seguridad",
     unidad: "Gerencia de Seguridad Institucional · Policía auxiliar de la estación",
-    encargan: ["jefe_seguridad"],
+    encargan: ["jefe_estacion"],
     asuntos: ["Rondín adicional de vigilancia", "Comercio o bloqueo en pasillo", "Persona en situación de riesgo", "Control de acceso por aglomeración"],
   },
   mantenimiento: {
@@ -78,8 +78,8 @@ export const AREAS: Record<AreaId, Area> = {
   sistemas: {
     id: "sistemas",
     nombre: "Sistemas",
-    unidad: "Gerencia de Organización y Sistemas (soporte de la plataforma)",
-    encargan: ["plataforma"],
+    unidad: "Gerencia de Organización y Sistemas (soporte de la plataforma; sus tickets los asigna la Mesa)",
+    encargan: [],
     asuntos: ["La app o la consola no responde", "Cuenta bloqueada o sin acceso", "Dato incorrecto en el mapa"],
   },
 }
@@ -260,7 +260,7 @@ export const PERSONAL_DE_AREA: Partial<Record<AreaId, Asignable[]>> = {
     { id: "A-PATRICIA", nombre: "Patricia Olvera Fuentes", puesto: "Mesa de atención" },
     { id: "A-SAMUEL", nombre: "Samuel Rangel Díaz", puesto: "Atención al usuario" },
   ],
-  sistemas: [{ id: "S-PEDRO", nombre: "Pedro Iván Robles Cervantes", puesto: "Administración de la plataforma" }],
+  sistemas: [{ id: "S-HECTOR", nombre: "Héctor Salas Rivas", puesto: "Soporte de sistemas" }],
 }
 
 /** Puestos de la estación que atienden cada área. */
@@ -736,7 +736,7 @@ export const atrasada = (t: Ticket, now: number) => abierto(t) && now > vencimie
 /* ------------------------------------------------------------------ */
 
 /**
- * Seudónimo de la «Cuenta de prueba 2» (HMAC-SHA-256 de su identificador de prueba con la clave
+ * Seudónimo de la «Cuenta de prueba» (Ana Lucía) (HMAC-SHA-256 de su identificador de prueba con la clave
  * de demostración), para que la vista «Mi cuenta» tenga historial al iniciar sesión con ella.
  */
 export const SEUDONIMO_DEMO = "6b2703f452612b69092ef4fb1d390ebc153c4394400c97ef2c84b84c7fc99f79"
@@ -753,7 +753,7 @@ export function sembrarServicio(db: BaseDatos, now: number, forzar = false): Bas
   const turno = turnoEnCurso(now)
   const base = medianoche(now)
 
-  // La cuenta de prueba 2 tiene la Tarjeta Incluyente verificada y dos reportes de equipos.
+  // La cuenta de prueba tiene la Tarjeta Incluyente verificada y dos reportes de equipos.
   if (!db.usuarios[SEUDONIMO_DEMO])
     db.usuarios[SEUDONIMO_DEMO] = { seudonimo: SEUDONIMO_DEMO, nivel: "Llave Verificada", verificado: true, consentimiento: { fecha: now - 20 * DIA, version: VERSION_AVISO }, alta: now - 40 * DIA }
   db.reportes = db.reportes.filter((r) => !r.id.startsWith("R-MSB-DEMO"))
@@ -762,7 +762,7 @@ export function sembrarServicio(db: BaseDatos, now: number, forzar = false): Bas
   propio("R-MSB-DEMO-1", "Tacubaya", "EL-TACUBAYA-01", 3.4)
   propio("R-MSB-DEMO-2", "Pantitlán", "EL-PANTITLAN-05", 19.5 * 24)
 
-  // Reportes de servicio: algunos de la cuenta de prueba 2 y otros de distintas personas.
+  // Reportes de servicio: algunos de la cuenta de prueba y otros de distintas personas.
   const rs = (id: string, station: string, categoria: CategoriaId, problema: string, lugar: string, horas: number, seudonimo: string, verificado = false, ticketId?: string, respuesta?: ReporteServicio["respuesta"]) =>
     sv.reportes.push({ id, station, categoria, problema, lugar, ts: now - horas * HORA, seudonimo, verificado, ticketId, respuesta, demo: true })
   rs("RS-0190", "Hidalgo", "senalizacion", "braille", "Elevador o salvaescaleras", 6 * 24, SEUDONIMO_DEMO, true, "TK-0041", { ts: now - 4 * DIA, resuelto: true })

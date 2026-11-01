@@ -1,31 +1,22 @@
 import { useState } from "react"
-import { CONTENIDO_EJEMPLO, type ContenidoEmergencia, type EstadoConsola } from "../lib/admin"
-import { leer } from "../lib/storage"
+import { CONTENIDO_EMERGENCIA as contenido } from "../lib/admin"
 import { Icon } from "./Icon"
 import { Dialog } from "./ui"
 
 /**
  * Botón de emergencia (RF-15). El contenido va dentro de la aplicación y el
  * service worker lo guarda en caché, por lo que se puede abrir sin conexión.
- * El texto lo publica la consola del personal: lo propone Accesibilidad y
- * contenidos y lo aprueba Gobernanza (HU-28, RN9), con su fuente y fecha (CA-15.1).
+ * El texto sale de las fuentes oficiales del STC, con su fuente y fecha (CA-15.1).
  */
-function contenidoPublicado(): ContenidoEmergencia {
-  return leer<EstadoConsola | null>("msb.consola.v3", null)?.contenido?.publicado ?? CONTENIDO_EJEMPLO
-}
 
 export function EmergencyButton() {
   const [abierto, setAbierto] = useState(false)
-  const [contenido, setContenido] = useState<ContenidoEmergencia>(contenidoPublicado)
   return (
     <>
       <button
         type="button"
         className="emergency-button"
-        onClick={() => {
-          setContenido(contenidoPublicado())
-          setAbierto(true)
-        }}
+        onClick={() => setAbierto(true)}
       >
         <Icon name="phone" /> Emergencia
       </button>
@@ -34,7 +25,7 @@ export function EmergencyButton() {
           Disponible sin conexión.{" "}
           {contenido.ejemplo
             ? "Contenido de ejemplo del prototipo: en la versión final se muestran las indicaciones oficiales del STC."
-            : "Indicaciones oficiales del STC, revisadas por Gobernanza de datos."}
+            : "Indicaciones oficiales del STC."}
         </p>
         <ol className="space-y-3">
           {contenido.pasos.map((p, i) => (

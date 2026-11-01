@@ -577,7 +577,6 @@ export function asignarIncidente(db: BaseDatos, e: EstadoConsola, quien: Cuenta,
   if (negado) return negado
   const p = personaPorId(op, personaId)
   if (!p || p.station !== x.station) return { ok: false, codigo: 400, mensaje: "Elige a una persona de esa estación." }
-  if (quien.roles.includes("jefe_seguridad") && !quien.roles.includes("jefe_estacion") && p.puesto !== "Policía auxiliar") return { ok: false, codigo: 400, mensaje: "Seguridad asigna al personal de seguridad de la estación." }
   x.asignadoA = p.id
   x.asignada = now
   if (x.estado === "abierta") x.estado = "asignada"

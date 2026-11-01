@@ -1,20 +1,21 @@
 /**
  * «Mi jornada»: vista de inicio de la policía auxiliar y del personal de estación.
- * Responde en segundos «¿qué hago ahora y qué sigue?»: lo urgente en grande arriba y el turno
- * completo como una línea del Metro, con cada tarea como una parada a su hora.
+ * Responde en segundos «¿qué hago ahora y qué sigue?»: lo urgente en grande arriba, el turno
+ * completo como una sola línea de extremo a extremo con cada actividad en su hora, y el reloj
+ * del turno con la aguja en la hora actual.
  */
 import { useState } from "react"
 import { avanzarIncidente, operacionDe, personaDeCuenta, personasDe, TIPO_INCIDENTE_LABEL, type Incidente } from "../../lib/operacion"
+import { puede } from "../../lib/admin"
+import { actividadesDe, ESTADO_ACTIVIDAD_LABEL, TIPO_ACTIVIDAD_LABEL, type Actividad } from "../../lib/jornada"
 import { abierto, asignadoA, atrasada, avanzarTicket, horaDe, turnoEnCurso, AREAS, type Ticket } from "../../lib/servicio"
 import { Icon } from "../Icon"
 import type { Ctx } from "../admin/AdminApp"
 import { DetalleTicket, LevantarTicket } from "./Tickets"
-import { estadoTarea, partesDe } from "./VistaJefe"
-import { Anillo, Avatar, BarraEstados, Columnas, hace, hhmm, ICONO_AREA, Letrero, Prioridad, Vistazo } from "./Visual"
+import { ConteoEstados, faltan, ICONO_ESTADO, ICONO_TIPO, LeyendaActividades, LineaJornada, RelojTurno } from "./Jornada"
+import { Avatar, Columnas, hace, hhmm, Letrero, Prioridad, Vistazo } from "./Visual"
 
 const DIA = 24 * 3600_000
-
-type Item = { clave: string; min: number; tipo: "inicio" | "fin" | "tarea"; t?: Ticket }
 
 function Acciones({ t, ctx, grande = false }: { t: Ticket; ctx: Ctx; grande?: boolean }) {
   const avanzar = (paso: "en_proceso" | "resuelto") => ctx.operar((d, e, now) => avanzarTicket(d, e, ctx.cuenta, t.id, paso, "", now))
@@ -73,20 +74,19 @@ export function MiJornada({ ctx }: { ctx: Ctx }) {
 
   const mios = asignadoA(db, yo.id, ahora)
   const apoyos = op.incidentes.filter((x) => x.asignadoA === yo.id && (x.estado === "asignada" || x.estado === "en_camino")).sort((a, b) => a.ts - b.ts)
-  const partes = partesDe(mios, ahora)
-  const hechas = partes.find((p) => p.clase === "hecha")!.valor
   const atrasadas = mios.filter((t) => atrasada(t, ahora))
   const minAhora = new Date(ahora).getHours() * 60 + new Date(ahora).getMinutes()
   const foco: Ticket | undefined = atrasadas[0] ?? mios.find((t) => t.estado === "en_proceso") ?? mios.find((t) => abierto(t))
   const jefe = personasDe(op, yo.station).find((p) => p.puesto === "Jefe(a) de estación")
 
-  const items: Item[] = [
-    { clave: "inicio", min: turno.inicio, tipo: "inicio" as const },
-    // Un ticket asignado antes del turno aparece al inicio del turno.
-    ...mios.map((t) => ({ clave: t.id, min: t.clase === "ticket" ? Math.max(horaDe(t), turno.inicio) : horaDe(t), tipo: "tarea" as const, t })),
-    { clave: "fin", min: turno.fin, tipo: "fin" as const },
-  ].sort((a, b) => a.min - b.min || (a.tipo === "inicio" ? -1 : b.tipo === "inicio" ? 1 : 0))
-  const posAhora = turno.dentro ? items.findIndex((x) => x.min > minAhora) : -1
+  const acts = actividadesDe(db, yo, ahora)
+  const actsHechas = acts.filter((a) => a.estado === "hecha").length
+  const puedeRondas = puede(cuenta, "rondas.registrar", ahora)
+  const abrir = (a: Actividad) => {
+    if (a.ticket) setAbiertoId(a.ticket.id)
+    else if (a.tipo === "ronda" && puedeRondas) ctx.ir("rondas")
+    else document.getElementById("ahora-titulo")?.scrollIntoView({ behavior: "smooth", block: "center" })
+  }
 
   const semana: Array<{ etiqueta: string; valor: number }> = []
   for (let i = 6; i >= 0; i--) {
@@ -102,8 +102,8 @@ export function MiJornada({ ctx }: { ctx: Ctx }) {
   const resumen = apoyos.length
     ? `${apoyos.length === 1 ? "Un apoyo te espera" : `${apoyos.length} apoyos te esperan`}`
     : atrasadas.length
-      ? `${atrasadas.length === 1 ? "Una tarea atrasada" : `${atrasadas.length} tareas atrasadas`} · ${hechas} de ${mios.length} hechas`
-      : `${hechas} de ${mios.length} hechas · turno ${turno.nombre.toLowerCase()} ${hhmm(turno.inicio)}–${hhmm(turno.fin)}`
+      ? `${atrasadas.length === 1 ? "Una tarea atrasada" : `${atrasadas.length} tareas atrasadas`} · ${actsHechas} de ${acts.length} actividades hechas`
+      : `${actsHechas} de ${acts.length} actividades hechas · turno ${turno.nombre.toLowerCase()} ${hhmm(turno.inicio)}–${hhmm(turno.fin)}`
 
   return (
     <div className={`vista rol-${perfil}`}>
@@ -112,6 +112,17 @@ export function MiJornada({ ctx }: { ctx: Ctx }) {
           <Icon name="ticket" size="sm" /> Levantar ticket
         </button>
       </Letrero>
+
+      <section aria-labelledby="jornada-titulo" className="tarjeta">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="jornada-titulo" className="seccion-titulo">
+            Tu jornada en una línea
+          </h2>
+          <p className="text-sm font-bold text-ink-muted">{faltan(ahora)}</p>
+        </div>
+        <LineaJornada acts={acts} ahora={ahora} onAbrir={abrir} />
+        <LeyendaActividades />
+      </section>
 
       <div className="vista-dos">
         <div className="space-y-4">
@@ -142,68 +153,59 @@ export function MiJornada({ ctx }: { ctx: Ctx }) {
             )}
           </section>
 
-          <section aria-labelledby="jornada-titulo" className="tarjeta">
-            <h2 id="jornada-titulo" className="seccion-titulo">
-              Tu turno, parada por parada
+          <section aria-labelledby="agenda-titulo" className="tarjeta">
+            <h2 id="agenda-titulo" className="seccion-titulo">
+              Tus actividades, una por una
             </h2>
-            <ol className="jornada mt-3">
-              {items.map((it, i) => {
-                const t = it.t
-                const est = t ? estadoTarea(t, ahora) : null
-                const pasado = it.min <= minAhora
-                const clase = t ? (est!.clase === "hecha" ? "jornada-hecha" : est!.clase === "atrasada" ? "jornada-atrasada" : it.min > minAhora && est!.clase === "pendiente" ? "jornada-futuro" : "") : pasado ? "jornada-hecha" : "jornada-futuro"
+            <ol className="agenda" aria-label="Tus actividades, en orden">
+              {acts.map((a, i) => {
+                const t = a.ticket
+                const cerca = a.inicio <= minAhora + 30
                 return (
-                  <li key={it.clave} className={`jornada-item ${clase} ${t && foco?.id === t.id && !apoyos.length ? "jornada-ahora" : ""}`}>
-                    {i === posAhora && (
-                      <span className="jornada-marca-ahora">
-                        <span>Ahora {hhmm(minAhora)}</span>
-                      </span>
-                    )}
-                    <span className="jornada-hora">{hhmm(it.min)}</span>
-                    <span className="jornada-punto" aria-hidden="true">
-                      {(clase === "jornada-hecha" || clase === "jornada-atrasada") && <Icon name={clase === "jornada-hecha" ? "check" : "alert"} className="size-3" />}
+                  <li key={a.id} className={`agenda-item act-borde-${a.estado} ${foco && t && foco.id === t.id && !apoyos.length ? "agenda-foco" : ""}`}>
+                    <span className="agenda-num" aria-hidden="true">
+                      {i + 1}
                     </span>
-                    <div className="jornada-cuerpo">
-                      {!t ? (
-                        <p className="pt-1 font-extrabold text-ink-muted">{it.tipo === "inicio" ? "Inicio de turno" : "Fin de turno y entrega"}</p>
-                      ) : (
-                        <>
-                          <button type="button" className="text-left" onClick={() => setAbiertoId(t.id)}>
-                            <span className={`block font-extrabold leading-snug ${est!.clase === "hecha" ? "text-ink-muted line-through decoration-1" : ""}`}>{t.asunto}</span>
-                          </button>
-                          <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                            <span className={`chip chip-estado-${est!.tono}`}>
-                              <Icon name={est!.clase === "hecha" ? "check" : est!.clase === "atrasada" ? "alert" : est!.clase === "curso" ? "clock" : "minus"} className="size-3" />
-                              {est!.texto}
-                            </span>
-                            {t.clase === "ticket" && (
-                              <span className="chip">
-                                <Icon name="ticket" className="size-3" /> {t.id} · <Icon name={ICONO_AREA[t.area]} className="size-3" /> {AREAS[t.area].nombre}
-                              </span>
-                            )}
-                            {t.prioridad === "alta" && abierto(t) && <Prioridad p="alta" />}
-                          </span>
-                          {t.detalle && abierto(t) && <p className="mt-1.5 text-sm text-ink-muted">{t.detalle}</p>}
-                          {/* Los botones solo aparecen en lo que toca ahora; lo demás se abre al tocarlo. */}
-                          {(foco?.id !== t.id || apoyos.length > 0) && (t.estado === "en_proceso" || (abierto(t) && it.min <= minAhora + 30)) && <Acciones t={t} ctx={ctx} />}
-                        </>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-x-2 text-xs font-extrabold text-ink-muted">
+                        <span className="tabular-nums">
+                          {hhmm(a.inicio)}–{hhmm(a.fin)}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Icon name={ICONO_TIPO[a.tipo]} className="size-3.5" /> {TIPO_ACTIVIDAD_LABEL[a.tipo]}
+                          {t?.clase === "ticket" ? ` ${t.id} · ${AREAS[t.area].nombre}` : ""}
+                        </span>
+                      </p>
+                      <button type="button" className="text-left" onClick={() => abrir(a)}>
+                        <span className={`block font-extrabold leading-snug ${a.estado === "hecha" ? "text-ink-muted line-through decoration-1" : ""}`}>{a.titulo}</span>
+                      </button>
+                      <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span className={`chip chip-act-${a.estado}`}>
+                          <Icon name={ICONO_ESTADO[a.estado]} className="size-3" />
+                          {ESTADO_ACTIVIDAD_LABEL[a.estado]}
+                        </span>
+                        {a.alta && a.estado !== "hecha" && a.tipo !== "apoyo" && <Prioridad p="alta" />}
+                      </span>
+                      {/* Los botones solo aparecen en lo que toca ahora; lo demás se abre al tocarlo. */}
+                      {t && (foco?.id !== t.id || apoyos.length > 0) && (t.estado === "en_proceso" || (abierto(t) && cerca)) && <Acciones t={t} ctx={ctx} />}
+                      {a.tipo === "ronda" && a.estado !== "hecha" && cerca && puedeRondas && (
+                        <button type="button" className="boton-borde mt-2" onClick={() => ctx.ir("rondas")}>
+                          <Icon name="eye" size="sm" /> Registrar la ronda
+                        </button>
                       )}
                     </div>
                   </li>
                 )
               })}
+              {acts.length === 0 && <li className="text-sm text-ink-muted">No tienes actividades en este turno.</li>}
             </ol>
           </section>
         </div>
 
         <aside className="space-y-3" aria-label="Tu avance">
-          <Vistazo titulo="Tu avance de hoy">
-            <div className="flex items-center gap-4">
-              <Anillo valor={hechas} max={Math.max(1, mios.length)} centro={`${hechas}/${mios.length}`} tono={atrasadas.length ? "warn" : "ok"} />
-              <div className="min-w-0 flex-1">
-                <BarraEstados partes={partes} etiqueta="Tus tareas de hoy" />
-              </div>
-            </div>
+          <Vistazo titulo="Tu turno en el reloj">
+            <RelojTurno acts={acts} ahora={ahora} />
+            <ConteoEstados acts={acts} />
           </Vistazo>
           <Vistazo titulo={guardia ? "Personas que acompañaste" : "Apoyos que atendiste"}>
             <Columnas datos={semana} etiqueta="Apoyos atendidos por día, últimos 7 días" unidad="atendidos" />

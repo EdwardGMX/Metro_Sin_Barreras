@@ -91,13 +91,12 @@ describe("Tickets entre áreas (RN11, RN12)", () => {
     expect(porTurnar(db, AHORA).some((g) => g.station === "Hidalgo" && g.problema.id === "avisos")).toBe(false)
   })
 
-  it("cualquier persona del personal levanta tickets, pero solo en sus estaciones; la supervisión no", () => {
+  it("cualquier persona del personal levanta tickets, pero solo en sus estaciones", () => {
     const { e, db } = preparar()
     const datos = { area: "sistemas" as const, station: "Tacubaya", asunto: "La app o la consola no responde", detalle: "", prioridad: "baja" as const }
     expect(levantarTicket(db, e, c(e, "C-SEG-TAC"), datos, AHORA).ok).toBe(true)
-    expect(levantarTicket(db, e, c(e, "C-SAID"), { ...datos, station: "Zapata" }, AHORA).ok).toBe(true)
+    expect(levantarTicket(db, e, c(e, "C-MANT"), { ...datos, station: "Zapata" }, AHORA).ok).toBe(true)
     expect(levantarTicket(db, e, c(e, "C-SEG-TAC"), { ...datos, station: "Pantitlán" }, AHORA).ok).toBe(false)
-    expect(levantarTicket(db, e, c(e, "C-DIANA"), datos, AHORA).ok).toBe(false)
   })
 
   it("asigna la Mesa o quien encarga el área, y solo a personal de esa área", () => {
@@ -107,9 +106,10 @@ describe("Tickets entre áreas (RN11, RN12)", () => {
     const id = ultimo(db).id
     const karla = persona(db, "Tacubaya", "Policía auxiliar")
     const rosa = persona(db, "Tacubaya", "Personal de limpieza")
-    expect(asignarTicket(db, e, c(e, "C-JE-TAC"), id, karla.id, AHORA).ok).toBe(false) // seguridad la encarga la Gerencia de Seguridad
-    expect(asignarTicket(db, e, c(e, "C-JSEG"), id, rosa.id, AHORA).ok).toBe(false) // limpieza no atiende seguridad
-    expect(asignarTicket(db, e, c(e, "C-JSEG"), id, karla.id, AHORA).ok).toBe(true)
+    expect(asignarTicket(db, e, c(e, "C-MANT"), id, karla.id, AHORA).ok).toBe(false) // Mantenimiento no encarga seguridad
+    expect(asignarTicket(db, e, c(e, "C-JE-PAN"), id, karla.id, AHORA).ok).toBe(false) // otra estación
+    expect(asignarTicket(db, e, c(e, "C-JE-TAC"), id, rosa.id, AHORA).ok).toBe(false) // limpieza no atiende seguridad
+    expect(asignarTicket(db, e, c(e, "C-JE-TAC"), id, karla.id, AHORA).ok).toBe(true)
     expect(ticket(db, id).estado).toBe("asignado")
   })
 
