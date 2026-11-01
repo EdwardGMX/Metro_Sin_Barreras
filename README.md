@@ -19,7 +19,7 @@ Prototipo de aplicación web progresiva (PWA) que recomienda rutas accesibles en
 | Verificación opcional de Tarjeta Incluyente con consentimiento expreso y revocable; baja de cuenta | RF-19, RL-02, RL-08 |
 | Reportes con opciones predefinidas (sin texto libre), límite de 5 al día y 1 por equipo cada 2 h, validación comunitaria (3 personas en 6 h, o 2 si una está verificada) | RF-16, RF-20, RN5 |
 | Fotos JPEG/WebP verificadas por firma de bytes, reducidas a 1280 px y 1 MB, sin EXIF/GPS, borrado a 90 días y detección de fotos repetidas | RF-21, RN6 |
-| **Consola del personal** (`#/consola`): inicio de sesión institucional con verificación en dos pasos (simulado), cinco roles del STC con mínimo privilegio, una vista de inicio por perfil, indicadores por rol, separación de funciones y bitácora de auditoría | HU-29, HU-30, RN8, RN9, RNF-06, RNF-24 |
+| **Consola del personal** (`#/consola`): inicio de sesión institucional con verificación en dos pasos (simulado), cinco roles del STC con mínimo privilegio, una vista de inicio por perfil, separación de funciones y bitácora de auditoría | HU-29, HU-30, RN8, RN9, RNF-06, RNF-24 |
 | **Operación en las estaciones**: rondas de revisión a cinco horas del día con su responsable, verificación en sitio de reportes, órdenes de mantenimiento, incidentes y apoyos asignados a una persona; lo que confirma el personal cambia las rutas | HU-31 a HU-37, RN10 |
 | **Pedir apoyo en la estación** (`#apoyo`): la persona usuaria, sin cuenta, pide acompañamiento y ve cuando se asigna, va en camino y se atiende; quien reportó una falla ve si se verificó y si ya se reparó | HU-36 |
 | Botón de emergencia disponible sin conexión (service worker), con las indicaciones oficiales del STC | RF-15, CA-15.1 |
@@ -34,15 +34,15 @@ En el prototipo la “API” y la “base de datos” se simulan dentro del nave
 
 Se diseñó como si el sistema ya se hubiera entregado: solo tienen cuenta las personas del STC que operan el servicio, y cada una ve únicamente lo que su función necesita. Las personas usuarias no tienen cuenta en la consola; entran a la app pública con Llave CDMX.
 
-Los roles siguen las unidades del Estatuto Orgánico del STC (Gaceta Oficial de la CDMX, 17/09/2024). Las estaciones dependen de la Dirección de Transportación por gerencia de líneas, así que una estación como Pantitlán depende de tres gerencias. La consola muestra la unidad de cada rol en «Indicadores › Quién tiene acceso a la consola».
+Los roles siguen las unidades del Estatuto Orgánico del STC (Gaceta Oficial de la CDMX, 17/09/2024). Las estaciones dependen de la Dirección de Transportación por gerencia de líneas, así que una estación como Pantitlán depende de tres gerencias.
 
 | Rol | Quién | Módulos | Qué información tiene |
 |---|---|---|---|
-| Jefe(a) de estación | Cada estación | Mi estación hoy, Indicadores, Mi estación, Rondas, Tickets | El turno de su equipo como diagrama de Gantt y quién está dónde ahora; equipos de su estación, reportes por verificar, solicitudes de apoyo (las asigna; una persona atrapada aparece primero con su protocolo de cinco pasos), programa de rondas, órdenes de su estación; asigna tareas a su personal de seguridad, estación y limpieza, asigna los tickets de esas áreas y levanta tickets a otras |
-| Personal de estación | Cada estación | Mi jornada, Indicadores, Mi estación, Rondas, Tickets | Su jornada en una línea con las tareas del jefe, sus rondas, tickets y apoyos asignados |
-| Personal de seguridad | Policía auxiliar de cada estación | Mi jornada, Indicadores, Seguridad y apoyo, Tickets | Su jornada en una línea con las tareas del jefe, sus tickets y los apoyos que tiene asignados en su estación |
-| Mesa de atención y reportes | Gerencia de Atención al Usuario (Dirección de Medios) | Mesa de atención, Indicadores, Tickets, Moderación | Reportes ciudadanos agrupados por turnar, tickets de todas las áreas con su plazo (también los de Sistemas), reportes en cuarentena y sus fotos |
-| Mantenimiento electromecánico | Subdirección General de Mantenimiento (Instalaciones Fijas) | Tickets de mi área, Indicadores, Mantenimiento | Tickets de instalaciones que asigna a su personal técnico; órdenes por prioridad y plazo, que toma y cierra |
+| Jefe(a) de estación | Cada estación | Mi estación hoy, Mi estación, Rondas, Tickets | El turno de su equipo como diagrama de Gantt y quién está dónde ahora; equipos de su estación, reportes por verificar, solicitudes de apoyo (las asigna; una persona atrapada aparece primero con su protocolo de cinco pasos), programa de rondas, órdenes de su estación; asigna tareas a su personal de seguridad, estación y limpieza, asigna los tickets de esas áreas y levanta tickets a otras |
+| Personal de estación | Cada estación | Mi jornada, Mi estación, Rondas, Tickets | Su jornada en una línea con las tareas del jefe, sus rondas, tickets y apoyos asignados |
+| Personal de seguridad | Policía auxiliar de cada estación | Mi jornada, Seguridad y apoyo, Tickets | Su jornada en una línea con las tareas del jefe, sus tickets y los apoyos que tiene asignados en su estación |
+| Mesa de atención y reportes | Gerencia de Atención al Usuario (Dirección de Medios) | Mesa de atención, Tickets, Moderación | Reportes ciudadanos agrupados por turnar, tickets de todas las áreas con su plazo (también los de Sistemas), reportes en cuarentena y sus fotos |
+| Mantenimiento electromecánico | Subdirección General de Mantenimiento (Instalaciones Fijas) | Tickets de mi área, Mantenimiento | Tickets de instalaciones que asigna a su personal técnico; órdenes por prioridad y plazo, que toma y cierra |
 
 Cuentas de demostración (nombres ficticios): Arturo Lemus (jefe de Tacubaya), Mónica Ruiz (jefa de Pantitlán), Karla Jiménez (policía auxiliar de Tacubaya), Jorge Aranda (personal de estación de Tacubaya), Patricia Olvera (Mesa de atención) y Alejandra Torres (Mantenimiento).
 
@@ -50,7 +50,7 @@ Rondas de revisión (RN10): cinco al día por estación, 30 minutos antes de abr
 
 ### Vistas por perfil
 
-Cada perfil operativo entra a una vista pensada para leerse en segundos. El encabezado es una estación sobre la línea del Metro con el color del perfil (Línea 2 azul para la persona usuaria, Línea 7 naranja para el jefe de estación, Línea A morada para la policía auxiliar, Línea 4 para el personal de estación, Línea 8 verde para la Mesa de atención y café para Mantenimiento) y una frase que dice si todo está en orden o qué necesita atención. El avance de un reporte, un ticket, las rondas o un turno se dibuja como un trayecto con paradas. El color solo identifica al perfil: el estado siempre lleva ícono y texto. Los indicadores con meta siguen disponibles en el módulo «Indicadores».
+Cada perfil operativo entra a una vista pensada para leerse en segundos. El encabezado es una estación sobre la línea del Metro con el color del perfil (Línea 2 azul para la persona usuaria, Línea 7 naranja para el jefe de estación, Línea A morada para la policía auxiliar, Línea 4 para el personal de estación, Línea 8 verde para la Mesa de atención y café para Mantenimiento) y una frase que dice si todo está en orden o qué necesita atención. El avance de un reporte, un ticket, las rondas o un turno se dibuja como un trayecto con paradas. El color solo identifica al perfil: el estado siempre lleva ícono y texto.
 
 | Vista | Quién | Qué responde | De un vistazo | Qué puede hacer |
 |---|---|---|---|---|
@@ -70,20 +70,6 @@ Reglas de los tickets y las tareas (propuesta del equipo, por validar con el STC
 - **RN14.** La persona que reportó confirma si se resolvió; si dice que sigue, el ticket se reabre y vuelve a quien lo atendía. El personal nunca ve su nombre ni su seudónimo, solo cuántas personas reportaron.
 
 Para recorrerlas: en la app pública, «Mi cuenta» con la cuenta de prueba de Ana Lucía (con historial y Tarjeta Incluyente); en la consola, Arturo Lemus (jefe de Tacubaya), Karla Jiménez (policía auxiliar), Jorge Aranda (personal de estación), Patricia Olvera (Mesa de atención) y Alejandra Torres (Mantenimiento). El personal de demostración está en el turno en curso (matutino de 6:00 a 14:00 o vespertino de 14:00 a 22:00).
-
-### Indicadores por rol
-
-Además de su vista, cada rol tiene el módulo **Indicadores**, que responde la pregunta de su función con indicadores (valor, meta con el requisito que la fija y semáforo con ícono y texto), gráficas con tabla de datos y una lista de lo que debe atender hoy.
-
-| Rol | Pregunta | Indicadores | Gráficas |
-|---|---|---|---|
-| Jefe(a) de estación | ¿Mi estación está accesible ahora y todo se revisó a tiempo? | Equipos funcionando, rondas de hoy, reportes por verificar, apoyos sin asignar y en curso, órdenes de su estación | Rondas de la semana; tiempo desde la última revisión de cada equipo |
-| Personal de estación | ¿Qué me toca revisar y atender ahora? | Siguiente ronda, rondas de hoy, reportes por verificar, apoyos asignados, rondas a tiempo, equipos con falla | Sus rondas de la semana |
-| Personal de seguridad | ¿A quién debo atender ahora? | Asignaciones activas, la más antigua, atendidas hoy, su tiempo de atención, sin asignar en su estación, saturación | Sus atenciones de la semana |
-| Mesa de atención y reportes | ¿La cola se atiende a tiempo y lo que pasa a validación es confiable? | Cola, antigüedad del más antiguo, recibidos en 24 h, tasa de rechazo, equipos confirmados fuera de servicio, cuentas de baja confiabilidad | Antigüedad de la cola contra el plazo |
-| Mantenimiento electromecánico | ¿Qué equipos reparo primero y cuánto tardamos? | Órdenes abiertas, fuera de plazo, sin tomar, tiempo medio de reparación, reparadas en plazo, fallas recurrentes | Antigüedad de las órdenes; órdenes por tipo de equipo |
-
-Los valores se calculan con los datos del prototipo y cambian con lo que se hace en la consola. Cálculo en `src/lib/tableros.ts`, pruebas en `src/lib/tableros.test.ts` y vista en `src/components/admin/Tablero.tsx`.
 
 Reglas: no se combinan roles incompatibles (quien repara un equipo no confirma su reparación, RN9); la sesión se cierra tras 15 minutos sin actividad; cada acción, incluidos los intentos negados, queda en la bitácora de auditoría. En producción la consola es un servicio aparte en Cloud Run protegido por Identity-Aware Proxy y Cloud Identity (verificación en dos pasos). Las reglas están en `src/lib/admin.ts` y sus pruebas en `src/lib/admin.test.ts`.
 
@@ -133,13 +119,11 @@ src/
   lib/admin.test.ts       Pruebas del control de acceso de la consola
   lib/operacion.ts        Rondas, verificación en sitio, órdenes de mantenimiento, incidentes y apoyos (RN10)
   lib/operacion.test.ts   Pruebas de la operación en las estaciones
-  lib/tableros.ts         Indicadores, gráficas y pendientes del tablero de cada rol
-  lib/tableros.test.ts    Pruebas de los tableros por rol
   lib/servicio.ts         Reportes de servicio, tickets entre áreas, tareas del jefe y jornada (RN11 a RN14)
   lib/servicio.test.ts    Pruebas de tickets, tareas y confirmación de la persona usuaria
   lib/jornada.ts          Actividades de cada persona en el turno, quién está dónde y carriles del Gantt
   lib/jornada.test.ts     Pruebas de la jornada
-  components/admin/       Consola del personal (inicio de sesión, indicadores por rol y módulos operativos)
+  components/admin/       Consola del personal (inicio de sesión y módulos operativos)
   components/vistas/      Vistas por perfil: Mi cuenta, Mi estación hoy, Mi jornada, Mesa de atención y Tickets;
                           Jornada.tsx dibuja la línea de la jornada, el Gantt del equipo y el reloj del turno
   components/Apoyo.tsx    Pedir apoyo en la estación y ver su avance (app pública)

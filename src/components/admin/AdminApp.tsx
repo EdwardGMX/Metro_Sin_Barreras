@@ -27,7 +27,6 @@ import { guardar, leer, borrar } from "../../lib/storage"
 import { Icon } from "../Icon"
 import { ModeracionConsola } from "./Modulos"
 import { Mantenimiento, MiEstacion, Rondas, Seguridad } from "./Operacion"
-import { MiTablero } from "./Tablero"
 import { MiJornada } from "../vistas/MiJornada"
 import { MesaAtencion, ModuloTickets } from "../vistas/Tickets"
 import { VistaJefe } from "../vistas/VistaJefe"
@@ -48,7 +47,7 @@ export type Ctx = {
   ir: (m: ModuloId) => void
 }
 
-/** Vista de inicio propia de cada perfil; sus indicadores quedan en el módulo «Indicadores». */
+/** Vista de inicio propia de cada perfil. */
 type Inicio = { nombre: string; vista: "jefe" | "jornada" | "mesa" | "tickets" }
 export function inicioDe(c: Cuenta): Inicio | null {
   if (c.roles.includes("jefe_estacion")) return { nombre: "Mi estación hoy", vista: "jefe" }
@@ -177,10 +176,10 @@ export default function AdminApp() {
     const base = modulosVisibles(cuenta, ahora)
     const home = inicioDe(cuenta)
     if (!home) return base
-    // Su vista propia ocupa «inicio»; los indicadores siguen disponibles en su propio módulo.
+    // Su vista propia ocupa «inicio».
     return base
       .filter((m) => !(home.vista === "tickets" && m.id === "tickets"))
-      .flatMap((m) => (m.id === "inicio" ? [{ ...m, nombre: home.nombre }, { id: "indicadores" as ModuloId, nombre: "Indicadores" }] : [m]))
+      .map((m) => (m.id === "inicio" ? { ...m, nombre: home.nombre } : m))
   }, [cuenta, ahora])
   const ir = (m: ModuloId) => {
     setModulo(m)
@@ -315,8 +314,7 @@ export default function AdminApp() {
           {actual === "inicio" && inicio?.vista === "jornada" && <MiJornada ctx={ctx} />}
           {actual === "inicio" && inicio?.vista === "mesa" && <MesaAtencion ctx={ctx} />}
           {actual === "inicio" && inicio?.vista === "tickets" && <ModuloTickets ctx={ctx} />}
-          {actual === "inicio" && !inicio && <MiTablero key={cuenta.id} ctx={ctx} />}
-          {actual === "indicadores" && <MiTablero key={cuenta.id} ctx={ctx} />}
+          {actual === "inicio" && !inicio && <ModuloTickets ctx={ctx} />}
           {actual === "tickets" && <ModuloTickets ctx={ctx} />}
           {actual === "estacion" && <MiEstacion ctx={ctx} />}
           {actual === "rondas" && <Rondas ctx={ctx} />}

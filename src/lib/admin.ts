@@ -23,7 +23,6 @@ export type Permiso =
   | "moderacion.ver"
   | "moderacion.decidir"
   | "evidencias.ver"
-  | "indicadores.ver"
   | "rondas.programar"
   | "rondas.registrar"
   | "estacion.ver"
@@ -46,7 +45,6 @@ export const PERMISO_LABEL: Record<Permiso, string> = {
   "moderacion.ver": "Ver la cola de reportes en revisión",
   "moderacion.decidir": "Aprobar o rechazar reportes",
   "evidencias.ver": "Ver las fotos de los reportes",
-  "indicadores.ver": "Ver los indicadores de su función",
   "rondas.programar": "Programar las rondas de revisión y definir quién las da",
   "rondas.registrar": "Registrar las rondas de revisión de los equipos",
   "estacion.ver": "Ver los equipos, reportes y solicitudes de apoyo de su estación",
@@ -134,11 +132,11 @@ export const ROLES_INCOMPATIBLES: Array<[RolId, RolId, string]> = [
   ["mantenimiento", "jefe_estacion", "quien repara un equipo no confirma en sitio su propia reparación"],
 ]
 
-export type ModuloId = "inicio" | "estacion" | "rondas" | "mantenimiento" | "seguridad" | "moderacion" | "tickets" | "indicadores"
+export type ModuloId = "inicio" | "estacion" | "rondas" | "mantenimiento" | "seguridad" | "moderacion" | "tickets"
 
 /** Un módulo se muestra si la cuenta tiene al menos uno de los permisos que requiere. */
 export const MODULOS: Array<{ id: ModuloId; nombre: string; requiere?: Permiso | Permiso[] }> = [
-  { id: "inicio", nombre: "Mi tablero" },
+  { id: "inicio", nombre: "Inicio" },
   { id: "estacion", nombre: "Mi estación", requiere: "estacion.ver" },
   { id: "rondas", nombre: "Rondas de revisión", requiere: ["rondas.registrar", "rondas.programar"] },
   { id: "mantenimiento", nombre: "Mantenimiento", requiere: "ordenes.atender" },
