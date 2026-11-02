@@ -14,7 +14,7 @@
 import { equipoPorId, equiposDeEstacion, type Equipo } from "../data/accessibility"
 import { allStations } from "../data/metroData"
 import { HORARIO, saturacion, tipoDia } from "../data/saturation"
-import { actor, alcanzaEstacion, auditar, exigir, DIA, HORA, MIN, type Cuenta, type EstadoConsola, type Resultado } from "./admin"
+import { actor, alcanceTexto, alcanzaEstacion, auditar, exigir, DIA, HORA, MIN, type Cuenta, type EstadoConsola, type Resultado } from "./admin"
 import type { BaseDatos, Reporte } from "./reports"
 
 /* ------------------------------------------------------------------ */
@@ -37,7 +37,7 @@ export const META_LLEGADA = 15 * MIN
 /** Vigencia de lo que observa el personal en una ronda o verificación. */
 export const VIGENCIA_OBSERVACION = 12 * HORA
 
-export type Puesto = "Jefe(a) de estación" | "Personal de estación" | "Policía auxiliar"
+export type Puesto = "Jefe(a) de estación" | "Personal de estación" | "Policía auxiliar" | "Personal de limpieza"
 export type Persona = { id: string; station: string; nombre: string; puesto: Puesto; cuentaId?: string }
 export type ProgramaEstacion = { station: string; responsables: Record<SlotId, string> }
 export type ResultadoEquipo = "funciona" | "con_fallas" | "fuera_servicio"
@@ -120,8 +120,26 @@ export type Incidente = {
   enCamino?: number
   atendida?: number
   cierre?: string
+  /** Pasos del protocolo de persona atrapada ya cumplidos y su hora (solo ese tipo). */
+  protocolo?: Partial<Record<PasoProtocolo, number>>
   demo?: boolean
 }
+
+export type PasoProtocolo = "emergencias" | "comunicacion" | "personal" | "equipo" | "valoracion"
+
+/**
+ * Protocolo de persona atrapada en un elevador. Sigue lo que se observó en
+ * rescates reales en la red (la policía da aviso, Bomberos rescata y se hace
+ * una valoración médica) y el contenido de emergencia de la app (no abrir las
+ * puertas, usar el interfón). Propuesta del equipo: el STC debe validarlo.
+ */
+export const PROTOCOLO_ATRAPADA: Array<{ id: PasoProtocolo; texto: string }> = [
+  { id: "emergencias", texto: "Llamar al 911 (Bomberos) y avisar a la Gerencia de Seguridad Institucional" },
+  { id: "comunicacion", texto: "Hablar con la persona por el interfón y pedirle que no intente abrir las puertas" },
+  { id: "personal", texto: "Enviar a personal de la estación y a la policía auxiliar al elevador" },
+  { id: "equipo", texto: "Enviar el elevador a mantenimiento para que las rutas lo eviten" },
+  { id: "valoracion", texto: "Registrar la salida de la persona y su valoración médica" },
+]
 
 export type Operacion = {
   sembrado: string
@@ -189,22 +207,27 @@ const PLANTILLA_DEMO: Array<[string, string, Puesto, string?]> = [
   ["Tacubaya", "Jorge Aranda Vela", "Personal de estación", "C-PE-TAC"],
   ["Tacubaya", "Lucía Ferrer Gómez", "Personal de estación"],
   ["Tacubaya", "Karla Jiménez Soto", "Policía auxiliar", "C-SEG-TAC"],
+  ["Tacubaya", "Rosa Martínez Ortiz", "Personal de limpieza"],
   ["Pantitlán", "Mónica Ruiz Cabrera", "Jefe(a) de estación", "C-JE-PAN"],
   ["Pantitlán", "Héctor Campos Nava", "Personal de estación"],
   ["Pantitlán", "Sofía Prieto León", "Personal de estación"],
   ["Pantitlán", "Raúl Ochoa Medina", "Policía auxiliar"],
+  ["Pantitlán", "Javier Soto Ramírez", "Personal de limpieza"],
   ["Hidalgo", "Fernando Ibarra Solís", "Jefe(a) de estación"],
   ["Hidalgo", "Patricia Lugo Reyes", "Personal de estación"],
   ["Hidalgo", "Andrés Robledo Paz", "Personal de estación"],
   ["Hidalgo", "Iván Castro Ruiz", "Policía auxiliar"],
+  ["Hidalgo", "Carmen Ledesma Ruiz", "Personal de limpieza"],
   ["Balderas", "Gabriela Montes Vargas", "Jefe(a) de estación"],
   ["Balderas", "Óscar Peña Rosas", "Personal de estación"],
   ["Balderas", "Laura Quintero Sáenz", "Personal de estación"],
   ["Balderas", "Elena Duarte Gil", "Policía auxiliar"],
+  ["Balderas", "Alfredo Pineda Luna", "Personal de limpieza"],
   ["Zapata", "Ricardo Salas Mora", "Jefe(a) de estación"],
   ["Zapata", "Verónica Núñez Lara", "Personal de estación"],
   ["Zapata", "Emilio Vega Ríos", "Personal de estación"],
   ["Zapata", "Tomás Ávila Cruz", "Policía auxiliar"],
+  ["Zapata", "Silvia Arenas Cano", "Personal de limpieza"],
 ]
 
 export const personasDe = (op: Operacion, station: string) => op.plantilla.filter((p) => p.station === station)
@@ -414,7 +437,7 @@ function asegurar(db: BaseDatos): Operacion {
 function fueraDeEstacion(e: EstadoConsola, quien: Cuenta, station: string, accion: string, now: number): Resultado | null {
   if (alcanzaEstacion(quien, station)) return null
   auditar(e, { ...actor(quien), accion: `intento: ${accion}`, objeto: station, resultado: "denegado", detalle: "estación fuera de su asignación (403)" }, now)
-  return { ok: false, codigo: 403, mensaje: `Tu cuenta solo puede operar ${quien.estaciones?.join(", ")}.` }
+  return { ok: false, codigo: 403, mensaje: `Tu cuenta solo puede operar ${alcanceTexto(quien)}.` }
 }
 
 function nuevaOrden(op: Operacion, datos: Omit<OrdenMantenimiento, "id" | "estado" | "prioridad">): OrdenMantenimiento {
@@ -554,7 +577,6 @@ export function asignarIncidente(db: BaseDatos, e: EstadoConsola, quien: Cuenta,
   if (negado) return negado
   const p = personaPorId(op, personaId)
   if (!p || p.station !== x.station) return { ok: false, codigo: 400, mensaje: "Elige a una persona de esa estación." }
-  if (quien.roles.includes("jefe_seguridad") && !quien.roles.includes("jefe_estacion") && p.puesto !== "Policía auxiliar") return { ok: false, codigo: 400, mensaje: "Seguridad asigna al personal de seguridad de la estación." }
   x.asignadoA = p.id
   x.asignada = now
   if (x.estado === "abierta") x.estado = "asignada"
@@ -585,6 +607,22 @@ export function avanzarIncidente(db: BaseDatos, e: EstadoConsola, quien: Cuenta,
   }
   auditar(e, { ...actor(quien), accion: paso === "en_camino" ? "en camino a incidente" : "incidente atendido", objeto: `${x.id} · ${x.station}`, resultado: "permitido", detalle: cierre.trim() || undefined }, now)
   return { ok: true, mensaje: paso === "en_camino" ? `Vas en camino a ${x.punto}.` : `${x.id} atendida.` }
+}
+
+/** Marca o desmarca un paso del protocolo de persona atrapada (jefe de estación o de seguridad). */
+export function marcarPasoProtocolo(db: BaseDatos, e: EstadoConsola, quien: Cuenta, id: string, paso: PasoProtocolo, hecho: boolean, now: number): Resultado {
+  const op = asegurar(db)
+  const x = op.incidentes.find((i) => i.id === id)
+  if (!x || x.tipo !== "persona_atrapada") return { ok: false, codigo: 400, mensaje: "El protocolo solo aplica a una persona atrapada en un elevador." }
+  if (x.estado === "atendida" || x.estado === "cancelada") return { ok: false, codigo: 409, mensaje: "El incidente ya está cerrado." }
+  const negado = exigir(e, quien, "incidentes.asignar", id, now) ?? fueraDeEstacion(e, quien, x.station, "protocolo de persona atrapada", now)
+  if (negado) return negado
+  const texto = PROTOCOLO_ATRAPADA.find((p) => p.id === paso)?.texto ?? paso
+  x.protocolo = { ...x.protocolo }
+  if (hecho) x.protocolo[paso] = now
+  else delete x.protocolo[paso]
+  auditar(e, { ...actor(quien), accion: hecho ? "paso de protocolo cumplido" : "paso de protocolo desmarcado", objeto: `${x.id} · ${x.station}`, resultado: "permitido", detalle: texto }, now)
+  return { ok: true, mensaje: hecho ? `Registrado: ${texto.charAt(0).toLowerCase()}${texto.slice(1)}.` : "Paso desmarcado." }
 }
 
 /* ------------------------------------------------------------------ */

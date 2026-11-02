@@ -220,6 +220,40 @@ export function ProfileDropdown({ seleccion, onChange }: { seleccion: PerfilId[]
   )
 }
 
+/** Perfiles de movilidad como tarjetas grandes y combinables (paso 1 del asistente, RN7). */
+export function ProfileChooser({ seleccion, onChange }: { seleccion: PerfilId[]; onChange: (ids: PerfilId[]) => void }) {
+  const alternar = (p: PerfilId) => onChange(seleccion.includes(p) ? seleccion.filter((x) => x !== p) : [...seleccion, p])
+  return (
+    <fieldset>
+      <legend className="sr-only">Elige uno o más perfiles de movilidad</legend>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {PERFILES.map((p) => {
+          const activo = seleccion.includes(p.id)
+          return (
+            <label key={p.id} className={`choice-card ${activo ? "choice-card-active" : ""}`}>
+              <input type="checkbox" className="size-5 shrink-0 accent-brand" checked={activo} onChange={() => alternar(p.id)} />
+              <span className="choice-icon">
+                <Icon name={ICONO_PERFIL[p.id]} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-bold leading-snug">{p.nombre}</span>
+                <span className="mt-0.5 block text-xs leading-snug text-ink-muted">{p.descripcion}</span>
+              </span>
+            </label>
+          )
+        })}
+      </div>
+    </fieldset>
+  )
+}
+
+/** Resumen corto de los perfiles elegidos. */
+export function resumenPerfiles(seleccion: PerfilId[]): string {
+  const elegidos = PERFILES.filter((p) => seleccion.includes(p.id))
+  if (elegidos.length === 0) return "Sin restricciones de movilidad"
+  return elegidos.length === 1 ? elegidos[0].nombre : `${elegidos[0].nombre} y ${elegidos.length - 1} más`
+}
+
 function isoLocal(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
