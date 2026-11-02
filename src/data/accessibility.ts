@@ -10,23 +10,21 @@ import { allStations, getLine, linesAtStation } from "./metroData"
 /** Medio para salvar un desnivel (RF-10). */
 export type Medio =
   | "elevador"
-  | "salvaescaleras"
   | "escalera_electrica"
   | "escalera_fija"
   | "nivel"
 
 export const MEDIO_LABEL: Record<Medio, string> = {
   elevador: "elevador",
-  salvaescaleras: "salvaescaleras",
   escalera_electrica: "escalera eléctrica",
   escalera_fija: "escaleras fijas",
   nivel: "acceso a nivel o rampa",
 }
 
 /** Medios que dependen de un equipo electromecánico del inventario. */
-export const MEDIO_CON_EQUIPO: Medio[] = ["elevador", "salvaescaleras", "escalera_electrica"]
+export const MEDIO_CON_EQUIPO: Medio[] = ["elevador", "escalera_electrica"]
 
-export type TipoEquipo = "Elevador" | "Salvaescaleras" | "Escalera eléctrica"
+export type TipoEquipo = "Elevador" | "Escalera eléctrica"
 
 export type Equipo = {
   id: string
@@ -63,8 +61,11 @@ const CON_ELEVADOR = new Set([
   "Observatorio", "Barranca del Muerto", "Terminal Aérea",
 ])
 const LINEA_12 = new Set(getLine("12").stations)
-/** Estaciones con salvaescaleras en lugar de elevador (dato ilustrativo). */
-const CON_SALVAESCALERAS = new Set(["Normal", "Patriotismo", "Lázaro Cárdenas"])
+/**
+ * Estaciones que no aparecen en los listados públicos de estaciones con elevador
+ * (TV Azteca, 16/11/2022; UnoTV, 29/03/2021): solo escaleras fijas.
+ */
+const SOLO_ESCALERAS = new Set(["Normal", "Patriotismo", "Lázaro Cárdenas"])
 /** Accesos cuyo medio no está perfilado todavía: se tratan como inciertos (RN2). */
 export const MEDIO_DESCONOCIDO = new Set(["Talismán", "Canal de San Juan"])
 
@@ -91,8 +92,8 @@ const porEstacion = new Map<string, AccesibilidadEstacion>()
 
 function nuevoEquipo(station: string, medio: Medio, ubicacion: string, n: number): string {
   const tipo: TipoEquipo =
-    medio === "elevador" ? "Elevador" : medio === "salvaescaleras" ? "Salvaescaleras" : "Escalera eléctrica"
-  const pref = medio === "elevador" ? "EL" : medio === "salvaescaleras" ? "SE" : "EE"
+    medio === "elevador" ? "Elevador" : "Escalera eléctrica"
+  const pref = medio === "elevador" ? "EL" : "EE"
   const id = `${pref}-${slug(station).slice(0, 10)}-${String(n).padStart(2, "0")}`
   equipos.push({ id, station, tipo, medio, ubicacion, estatusOficial: "FUNCIONANDO" })
   return id
@@ -103,8 +104,8 @@ function construirPaso(station: string, ubicacion: string, semilla: string, n0: 
   let medios: Medio[]
   if (LINEA_12.has(station) || CON_ELEVADOR.has(station)) {
     medios = ["elevador", "escalera_electrica", "escalera_fija"]
-  } else if (CON_SALVAESCALERAS.has(station)) {
-    medios = ["salvaescaleras", "escalera_fija"]
+  } else if (SOLO_ESCALERAS.has(station)) {
+    medios = ["escalera_fija"]
   } else if (h % 10 < 4) {
     medios = ["escalera_electrica", "escalera_fija"]
   } else if (h % 10 < 5) {
@@ -115,7 +116,7 @@ function construirPaso(station: string, ubicacion: string, semilla: string, n0: 
   const equiposPaso: Partial<Record<Medio, string>> = {}
   let n = n0
   for (const medio of medios) {
-    if ((["elevador", "salvaescaleras", "escalera_electrica"] as Medio[]).includes(medio)) {
+    if (MEDIO_CON_EQUIPO.includes(medio)) {
       equiposPaso[medio] = nuevoEquipo(station, medio, ubicacion, n++)
     }
   }

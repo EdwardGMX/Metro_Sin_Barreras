@@ -17,7 +17,7 @@ Prototipo de aplicación web progresiva (PWA) que recomienda rutas accesibles en
 | Perfil guardado solo en el dispositivo; la consulta envía solo restricciones codificadas (se puede ver la petición) | RF-13, RN3 |
 | Inicio de sesión simulado (OIDC) para reportar; se guarda solo un seudónimo HMAC-SHA-256 | RF-19, RN3 |
 | Verificación opcional de Tarjeta Incluyente con consentimiento expreso y revocable; baja de cuenta | RF-19, RL-02, RL-08 |
-| Reportes con opciones predefinidas (sin texto libre), límite de 5 al día y 1 por equipo cada 2 h, validación comunitaria (3 personas en 6 h, o 2 si una está verificada) | RF-16, RF-20, RN5 |
+| Pestaña Reportar: equipos (elevador o escalera) y otros problemas de la estación (limpieza, seguridad, señalización accesible, atención del personal y aglomeración), con opciones predefinidas (sin texto libre), límite de 5 al día y 1 por equipo cada 2 h, validación comunitaria (3 personas en 6 h, o 2 si una está verificada) | RF-16, RF-20, RN5 |
 | Fotos JPEG/WebP verificadas por firma de bytes, reducidas a 1280 px y 1 MB, sin EXIF/GPS, borrado a 90 días y detección de fotos repetidas | RF-21, RN6 |
 | **Consola del personal** (`#/consola`): inicio de sesión institucional con verificación en dos pasos (simulado), cinco roles del STC con mínimo privilegio, una vista de inicio por perfil, separación de funciones y bitácora de auditoría | HU-29, HU-30, RN8, RN9, RNF-06, RNF-24 |
 | **Operación en las estaciones**: rondas de revisión a cinco horas del día con su responsable, verificación en sitio de reportes, órdenes de mantenimiento, incidentes y apoyos asignados a una persona; lo que confirma el personal cambia las rutas | HU-31 a HU-37, RN10 |
@@ -25,7 +25,7 @@ Prototipo de aplicación web progresiva (PWA) que recomienda rutas accesibles en
 | Botón de emergencia disponible sin conexión (service worker), con las indicaciones oficiales del STC | RF-15, CA-15.1 |
 | Tamaño de texto, alto contraste, lectura en voz alta, lector de pantalla; 0 violaciones de axe (WCAG 2.2 AA) | RF-14, RNF-13, RNF-14 |
 | Aviso de privacidad simplificado | RL-03 |
-| **Mi cuenta** (`#mi-cuenta`): reportes en curso y solucionados dibujados como un trayecto del Metro, confirmación «¿se resolvió?», reportes de limpieza, seguridad, señalización accesible, atención del personal y aglomeración (solo opciones), Llave CDMX y Tarjeta Incluyente simuladas, quién ve qué de ti y tus estaciones | RF-16, RF-19, RN3, RN5, RN14 |
+| **Mi cuenta** (`#mi-cuenta`): reportes en curso y solucionados dibujados como un trayecto del Metro, confirmación «¿se resolvió?», Llave CDMX y Tarjeta Incluyente simuladas, quién ve qué de ti y tus estaciones | RF-16, RF-19, RN3, RN5, RN14 |
 | **Vistas por perfil en la consola**: Mi estación hoy (jefe, con el turno del equipo como diagrama de Gantt y quién está dónde ahora), Mi jornada (policía auxiliar y personal de estación, con la jornada en una sola línea y el reloj del turno), Mesa de atención y Tickets | RN8, RN9, RN11 a RN14 |
 
 En el prototipo la “API” y la “base de datos” se simulan dentro del navegador (`src/lib/router.ts` y `src/lib/reports.ts`), con la misma lógica que tendría el servicio en Cloud Run y Firestore.
@@ -54,7 +54,7 @@ Cada perfil operativo entra a una vista pensada para leerse en segundos. El enca
 
 | Vista | Quién | Qué responde | De un vistazo | Qué puede hacer |
 |---|---|---|---|---|
-| Mi cuenta (`#mi-cuenta`) | Persona usuaria con Llave CDMX | ¿Qué pasó con lo que reporté? | Tus reportes por etapa, tus estaciones ahora, problemas resueltos con tu ayuda | Seguir cada reporte (recibido, turnado, en atención, solucionado), confirmar si se resolvió, reportar otros problemas, verificar o revocar la Tarjeta Incluyente, guardar estaciones, darse de baja |
+| Mi cuenta (`#mi-cuenta`) | Persona usuaria con Llave CDMX | ¿Qué pasó con lo que reporté? | Tus reportes por etapa, tus estaciones ahora, problemas resueltos con tu ayuda | Seguir cada reporte (recibido, turnado, en atención, solucionado), confirmar si se resolvió, verificar o revocar la Tarjeta Incluyente, guardar estaciones, darse de baja |
 | Mi estación hoy | Jefe(a) de estación | ¿Mi estación está bien y mi equipo sabe qué hacer? | Equipos (íconos con estado), rondas de hoy como trayecto, quién está dónde ahora (en un apoyo, con algo atrasado, en una actividad o disponible) y el turno del equipo como diagrama de Gantt: una fila por persona, una barra por actividad a su hora y una línea vertical en «Ahora» | Asignar tareas desde la fila de cada persona, abrir cualquier barra, asignar los tickets de estación, limpieza y seguridad, levantar tickets a otras áreas |
 | Mi jornada | Policía auxiliar y personal de estación | ¿Qué hago ahora y qué sigue? | La jornada en una sola línea de extremo a extremo (inicio a fin del turno) con cada actividad numerada en su hora y la marca «Ahora»; lo urgente en grande (un apoyo asignado va primero); el reloj del turno con sus actividades y las agujas en la hora actual | Ir en camino y atender apoyos, empezar y terminar tareas y tickets, registrar sus rondas, levantar tickets |
 | Mesa de atención | Gerencia de Atención al Usuario | ¿Todo está turnado y en plazo? | Tickets en plazo, abiertos por área, resueltos en 7 días | Turnar reportes agrupados al área sugerida (o a otra), asignar, cambiar prioridad, cerrar o reabrir |

@@ -144,7 +144,7 @@ export const CATEGORIAS: Record<CategoriaId, Categoria> = {
 }
 export const ORDEN_CATEGORIAS: CategoriaId[] = ["limpieza", "seguridad", "senalizacion", "trato", "aglomeracion"]
 
-export const LUGARES = ["Acceso de calle", "Taquilla o torniquetes", "Pasillo", "Andén", "Transbordo entre líneas", "Elevador o salvaescaleras", "Sanitarios"]
+export const LUGARES = ["Acceso de calle", "Taquilla o torniquetes", "Pasillo", "Andén", "Transbordo entre líneas", "Elevador", "Sanitarios"]
 
 export const problemaPorId = (categoria: CategoriaId, id: string) => CATEGORIAS[categoria]?.problemas.find((p) => p.id === id)
 
@@ -765,7 +765,7 @@ export function sembrarServicio(db: BaseDatos, now: number, forzar = false): Bas
   // Reportes de servicio: algunos de la cuenta de prueba y otros de distintas personas.
   const rs = (id: string, station: string, categoria: CategoriaId, problema: string, lugar: string, horas: number, seudonimo: string, verificado = false, ticketId?: string, respuesta?: ReporteServicio["respuesta"]) =>
     sv.reportes.push({ id, station, categoria, problema, lugar, ts: now - horas * HORA, seudonimo, verificado, ticketId, respuesta, demo: true })
-  rs("RS-0190", "Hidalgo", "senalizacion", "braille", "Elevador o salvaescaleras", 6 * 24, SEUDONIMO_DEMO, true, "TK-0041", { ts: now - 4 * DIA, resuelto: true })
+  rs("RS-0190", "Hidalgo", "senalizacion", "braille", "Elevador", 6 * 24, SEUDONIMO_DEMO, true, "TK-0041", { ts: now - 4 * DIA, resuelto: true })
   rs("RS-0193", "Balderas", "limpieza", "basura", "Andén", 30, "demo-k2", false, "TK-0042")
   rs("RS-0198", "Balderas", "seguridad", "iluminacion", "Pasillo", 28, SEUDONIMO_DEMO, true, "TK-0046")
   rs("RS-0199", "Balderas", "seguridad", "iluminacion", "Pasillo", 27.5, "demo-m4", false, "TK-0046")
@@ -776,7 +776,7 @@ export function sembrarServicio(db: BaseDatos, now: number, forzar = false): Bas
   rs("RS-0206", "Hidalgo", "senalizacion", "avisos", "Andén", 0.6, "demo-p2", true)
   rs("RS-0207", "Hidalgo", "senalizacion", "avisos", "Andén", 0.4, "demo-p3")
   rs("RS-0208", "Tacubaya", "limpieza", "sanitario", "Sanitarios", 0.6, "demo-q8")
-  rs("RS-0209", "Zapata", "aglomeracion", "fila_elevador", "Elevador o salvaescaleras", 0.3, "demo-r5", true)
+  rs("RS-0209", "Zapata", "aglomeracion", "fila_elevador", "Elevador", 0.3, "demo-r5", true)
   rs("RS-0210", "Pantitlán", "aglomeracion", "anden", "Andén", 0.35, "demo-s3", false, "TK-0053")
   rs("RS-0211", "Pantitlán", "aglomeracion", "anden", "Andén", 0.3, "demo-s4", false, "TK-0053")
 
@@ -799,7 +799,7 @@ export function sembrarServicio(db: BaseDatos, now: number, forzar = false): Bas
 
   // Ticket de la cuenta de prueba resuelto: espera su confirmación.
   tk({ id: "TK-0051", clase: "ticket", area: "limpieza", station: "Tacubaya", asunto: "Derrame o piso resbaloso", lugar: "Andén", prioridad: "alta", estado: "resuelto", origen: "persona_usuaria", reportes: ["RS-0201", "RS-0202"], creado: now - 2.3 * HORA, creadoPor: mesa, asignadoA: rosa?.id, asignadoNombre: rosa?.nombre, asignado: now - 2.1 * HORA, iniciado: now - 1.9 * HORA, resuelto: now - 1.5 * HORA, resueltoPor: rosa?.nombre })
-  tk({ id: "TK-0041", clase: "ticket", area: "mantenimiento", station: "Hidalgo", asunto: "Señalética en braille faltante o dañada", lugar: "Elevador o salvaescaleras", prioridad: "media", estado: "cerrado", origen: "persona_usuaria", reportes: ["RS-0190"], creado: now - 5.9 * DIA, creadoPor: mesa, asignadoA: "T-MARIANA", asignadoNombre: "Mariana Cortés Ibáñez", asignado: now - 5.8 * DIA, iniciado: now - 5.2 * DIA, resuelto: now - 4.3 * DIA, resueltoPor: "Mariana Cortés Ibáñez", cerrado: now - 4 * DIA, cerradoPor: "Persona usuaria (confirmó)" })
+  tk({ id: "TK-0041", clase: "ticket", area: "mantenimiento", station: "Hidalgo", asunto: "Señalética en braille faltante o dañada", lugar: "Elevador", prioridad: "media", estado: "cerrado", origen: "persona_usuaria", reportes: ["RS-0190"], creado: now - 5.9 * DIA, creadoPor: mesa, asignadoA: "T-MARIANA", asignadoNombre: "Mariana Cortés Ibáñez", asignado: now - 5.8 * DIA, iniciado: now - 5.2 * DIA, resuelto: now - 4.3 * DIA, resueltoPor: "Mariana Cortés Ibáñez", cerrado: now - 4 * DIA, cerradoPor: "Persona usuaria (confirmó)" })
   tk({ id: "TK-0042", clase: "ticket", area: "limpieza", station: "Balderas", asunto: "Basura acumulada", lugar: "Andén", prioridad: "media", estado: "cerrado", origen: "persona_usuaria", reportes: ["RS-0193"], creado: now - 29 * HORA, creadoPor: mesa, asignadoA: limpBal?.id, asignadoNombre: limpBal?.nombre, asignado: now - 28.5 * HORA, resuelto: now - 27 * HORA, resueltoPor: limpBal?.nombre, cerrado: now - 26 * HORA, cerradoPor: mesa })
   tk({ id: "TK-0046", clase: "ticket", area: "mantenimiento", station: "Balderas", asunto: "Zona con poca iluminación", lugar: "Pasillo", prioridad: "media", estado: "en_proceso", origen: "persona_usuaria", reportes: ["RS-0198", "RS-0199"], creado: now - 26 * HORA, creadoPor: mesa, asignadoA: "T-DIEGO", asignadoNombre: "Diego Herrera Campos", asignado: now - 25 * HORA, iniciado: now - 3 * HORA })
   tk({ id: "TK-0053", clase: "ticket", area: "seguridad", station: "Pantitlán", asunto: "Andén saturado sin control", lugar: "Andén", prioridad: "alta", estado: "asignado", origen: "persona_usuaria", reportes: ["RS-0210", "RS-0211"], creado: now - 0.25 * HORA, creadoPor: mesa, asignadoA: raul?.id, asignadoNombre: raul?.nombre, asignado: now - 0.2 * HORA })

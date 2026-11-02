@@ -31,15 +31,15 @@ export type Perfil = {
   presentacion: string
 }
 
-const TODOS: Medio[] = ["elevador", "salvaescaleras", "escalera_electrica", "escalera_fija", "nivel"]
+const TODOS: Medio[] = ["elevador", "escalera_electrica", "escalera_fija", "nivel"]
 
 export const PERFILES: Perfil[] = [
   {
     id: "silla_ruedas",
     nombre: "Uso silla de ruedas",
-    descripcion: "Solo elevador, salvaescaleras, rampa o acceso a nivel.",
+    descripcion: "Solo elevador, rampa o acceso a nivel.",
     restricciones: {
-      desniveles_admitidos: ["elevador", "salvaescaleras", "nivel"],
+      desniveles_admitidos: ["elevador", "nivel"],
       desniveles_penalizados: [],
       peso_transbordos: "alto",
       peso_saturacion: "alto",
@@ -51,7 +51,7 @@ export const PERFILES: Perfil[] = [
     nombre: "Uso bastón, muletas o andadera",
     descripcion: "También puedo usar escaleras eléctricas; evito escaleras fijas.",
     restricciones: {
-      desniveles_admitidos: ["elevador", "salvaescaleras", "escalera_electrica", "nivel"],
+      desniveles_admitidos: ["elevador", "escalera_electrica", "nivel"],
       desniveles_penalizados: [],
       peso_transbordos: "alto",
       peso_saturacion: "alto",

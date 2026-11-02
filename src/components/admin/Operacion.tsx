@@ -107,7 +107,7 @@ export function Rondas({ ctx }: { ctx: Ctx }) {
   return (
     <>
       <Encabezado eyebrow={esJefe ? "Jefe(a) de estación" : "Personal de estación"} titulo={`Rondas de revisión · ${station}`}>
-        Cinco rondas al día: antes de abrir y a las 9:00, 13:00, 17:00 y 21:00. Quien la da revisa cada elevador, salvaescaleras y escalera eléctrica; una falla crea la orden de mantenimiento y las rutas dejan de usar el equipo. Se registra dentro de 45 minutos de su hora (RN10).
+        Cinco rondas al día: antes de abrir y a las 9:00, 13:00, 17:00 y 21:00. Quien la da revisa cada elevador y escalera eléctrica; una falla crea la orden de mantenimiento y las rutas dejan de usar el equipo. Se registra dentro de 45 minutos de su hora (RN10).
       </Encabezado>
       <SelectorEstacion estaciones={estaciones} valor={station} onChange={setStation} />
 
@@ -637,7 +637,7 @@ export function Mantenimiento({ ctx }: { ctx: Ctx }) {
   return (
     <>
       <Encabezado eyebrow="Mantenimiento electromecánico" titulo="Órdenes de mantenimiento">
-        Se crean solas cuando una ronda o una verificación en sitio encuentra una falla, o las envía el jefe de estación. Prioridad alta para elevadores y salvaescaleras (24 h); media para escaleras eléctricas (72 h). Al cerrar, el personal de la estación confirma la reparación en su siguiente ronda: quien repara no la confirma (RN9).
+        Se crean solas cuando una ronda o una verificación en sitio encuentra una falla, o las envía el jefe de estación. Prioridad alta para elevadores (24 h); media para escaleras eléctricas (72 h). Al cerrar, el personal de la estación confirma la reparación en su siguiente ronda: quien repara no la confirma (RN9).
       </Encabezado>
       {!atiende && (
         <p className="callout mt-0 mb-4">

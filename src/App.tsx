@@ -559,7 +559,7 @@ export default function App() {
 
         {vista === "cuenta" && (
           <div className="mx-auto max-w-screen-2xl px-4 py-6 pb-12 lg:px-8">
-            <MiCuenta db={db} actualizar={actualizar} sesion={sesion} setSesion={setSesion} onAviso={() => setAvisoAbierto(true)} onReportarEquipo={reportarEstacion} />
+            <MiCuenta db={db} actualizar={actualizar} sesion={sesion} setSesion={setSesion} onAviso={() => setAvisoAbierto(true)} />
           </div>
         )}
 

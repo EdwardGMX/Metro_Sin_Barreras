@@ -16,6 +16,7 @@ import {
 } from "../lib/reports"
 import { seguimientoReporte } from "../lib/operacion"
 import { Icon } from "./Icon"
+import { ReportarOtro } from "./vistas/ReportarOtro"
 import { Dialog } from "./ui"
 
 /**
@@ -219,7 +220,7 @@ export function Reports({
         </span>
         <div>
           <p className="text-sm font-bold uppercase tracking-widest text-brand">Comunidad</p>
-          <h2 className="mt-1 text-2xl font-extrabold">Reportar un equipo fuera de servicio</h2>
+          <h2 className="mt-1 text-2xl font-extrabold">Reportar un equipo fuera de servicio u otro problema</h2>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-muted">
             Para evitar reportes falsos, reportar requiere iniciar sesión con Llave CDMX. Un reporte no cambia el estado del equipo por sí solo: se marca “incierto” y se confirma cuando 3 personas distintas reportan la misma falla en 6 horas (2 si una tiene la Tarjeta Incluyente verificada).
           </p>
@@ -387,6 +388,7 @@ export function Reports({
           <p aria-live="polite" className={mensaje ? `rounded-xl p-3 text-sm font-bold ${mensaje.ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}` : "sr-only"}>
             {mensaje?.texto}
           </p>
+          {activa && <ReportarOtro db={db} actualizar={actualizar} sesion={activa} />}
         </div>
 
         <div className="reports-feed">
