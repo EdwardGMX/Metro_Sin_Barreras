@@ -194,7 +194,7 @@ const siguienteId = (prefijo: string, existentes: string[], base: number) => {
   return `${prefijo}${String(Math.max(base, ...nums) + 1).padStart(4, "0")}`
 }
 
-/** Elevadores y salvaescaleras son la única opción para silla de ruedas: prioridad alta. */
+/** Los elevadores son la única opción para silla de ruedas: prioridad alta. */
 export const prioridadDe = (eq: Equipo | undefined): Prioridad => (eq?.tipo === "Escalera eléctrica" ? "media" : "alta")
 
 /* ------------------------------------------------------------------ */
@@ -631,7 +631,7 @@ export function marcarPasoProtocolo(db: BaseDatos, e: EstadoConsola, quien: Cuen
 
 export type DatosApoyo = { station: string; punto: string; tipo: TipoIncidente; detalle: string }
 
-export const PUNTOS_ENCUENTRO = ["Taquilla o torniquetes", "Acceso de calle", "Andén", "Transbordo entre líneas", "Elevador o salvaescaleras"]
+export const PUNTOS_ENCUENTRO = ["Taquilla o torniquetes", "Acceso de calle", "Andén", "Transbordo entre líneas", "Elevador"]
 
 export function validarApoyo(d: DatosApoyo): string | null {
   if (!allStations.includes(d.station)) return "Elige una estación de la lista."

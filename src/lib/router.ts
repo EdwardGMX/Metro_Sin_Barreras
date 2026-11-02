@@ -77,7 +77,6 @@ const TIEMPO_TRAMO = 2
 const TIEMPO_TRANSBORDO = 4
 const TIEMPO_MEDIO: Record<Medio, number> = {
   elevador: 3,
-  salvaescaleras: 4,
   escalera_electrica: 1.5,
   escalera_fija: 2,
   nivel: 1,

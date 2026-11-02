@@ -11,7 +11,7 @@ import { Icon } from "./Icon"
 const CLAVE_MIS_APOYOS = "msb.apoyo.mios"
 
 const MOTIVOS: Array<{ id: string; texto: string; tipo: TipoIncidente }> = [
-  { id: "equipo", texto: "Un elevador o salvaescaleras que necesito no funciona", tipo: "apoyo_movilidad" },
+  { id: "equipo", texto: "Un elevador que necesito no funciona", tipo: "apoyo_movilidad" },
   { id: "acompanar", texto: "Necesito acompañamiento para un transbordo", tipo: "apoyo_movilidad" },
   { id: "abordar", texto: "Necesito ayuda para subir o bajar del tren", tipo: "apoyo_movilidad" },
   { id: "orientacion", texto: "Necesito orientación dentro de la estación", tipo: "apoyo_movilidad" },

@@ -26,7 +26,7 @@ import { faltan, GanttEquipo, LeyendaActividades, type FilaGantt } from "./Jorna
 import { DetalleTicket, LevantarTicket, TicketCard } from "./Tickets"
 import { Avatar, hhmm, ICONO_AREA, Letrero, Trayecto, Vistazo, type Parte } from "./Visual"
 
-const ICONO_EQUIPO = { Elevador: "elevator", "Escalera eléctrica": "stairs", Salvaescaleras: "stairs" } as const
+const ICONO_EQUIPO = { Elevador: "elevator", "Escalera eléctrica": "stairs" } as const
 
 export function estadoTarea(t: Ticket, now: number): { texto: string; tono: "ok" | "warn" | "bad" | "neutral"; clase: Parte["clase"] } {
   if (t.estado === "resuelto" || t.estado === "cerrado") return { texto: ESTADO_TAREA_LABEL[t.estado], tono: "ok", clase: "hecha" }
