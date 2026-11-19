@@ -21,6 +21,8 @@ import {
   servicioDe,
   turnarReportes,
   turnarTicket,
+  editarTicket,
+  eliminarTicket,
   turnoEnCurso,
   SEUDONIMO_DEMO,
 } from "./servicio"
@@ -113,6 +115,41 @@ describe("Tickets entre áreas (RN11, RN12)", () => {
     expect(ticket(db, t.id).area).toBe("mantenimiento")
     expect(ticket(db, t.id).porTurnar).toBeUndefined()
     expect(asignarTicket(db, e, c(e, "C-MANT"), t.id, "T-DIEGO", AHORA + 2 * MIN).ok).toBe(true)
+  })
+
+  it("con departamento elegido, el ticket llega directo a esa área", () => {
+    const { e, db } = preparar()
+    expect(levantarTicket(db, e, c(e, "C-JE-TAC"), { station: "Tacubaya", asunto: "Luminaria del andén", detalle: "Dos lámparas apagadas en el andén de la Línea 1.", prioridad: "media", area: "mantenimiento" }, AHORA).ok).toBe(true)
+    expect(ultimo(db).area).toBe("mantenimiento")
+    expect(ultimo(db).porTurnar).toBeUndefined()
+  })
+
+  it("solo la Mesa modifica un ticket; si cambia de departamento se libera la asignación", () => {
+    const { e, db } = preparar()
+    const cambios = { asunto: "Bloqueo de comercio ambulante", detalle: "Frente al elevador de la Línea 7.", prioridad: "alta" as const, area: "seguridad" as const }
+    expect(editarTicket(db, e, c(e, "C-JE-TAC"), "TK-0054", cambios, AHORA).ok).toBe(false)
+    expect(editarTicket(db, e, c(e, "C-MESA"), "TK-0054", cambios, AHORA).ok).toBe(true)
+    expect(ticket(db, "TK-0054").asunto).toBe("Bloqueo de comercio ambulante")
+    expect(ticket(db, "TK-0054").prioridad).toBe("alta")
+    expect(ticket(db, "TK-0054").asignadoA).toBeDefined()
+    expect(editarTicket(db, e, c(e, "C-MESA"), "TK-0054", { ...cambios, area: "estacion" }, AHORA).ok).toBe(true)
+    expect(ticket(db, "TK-0054").asignadoA).toBeUndefined()
+    expect(ticket(db, "TK-0054").estado).toBe("nuevo")
+    // Un ticket de personas usuarias se puede modificar sin descripción.
+    expect(editarTicket(db, e, c(e, "C-MESA"), "TK-0053", { asunto: "Andén saturado", detalle: "", prioridad: "media", area: "seguridad" }, AHORA).ok).toBe(true)
+    expect(e.auditoria.filter((a) => a.accion === "modificar ticket")).toHaveLength(3)
+  })
+
+  it("solo la Mesa elimina; los reportes que lo originaron se dan de baja y no vuelven a turnarse", () => {
+    const { e, db } = preparar()
+    expect(eliminarTicket(db, e, c(e, "C-JE-PAN"), "TK-0053", AHORA).ok).toBe(false)
+    expect(eliminarTicket(db, e, c(e, "C-MESA"), "TK-0053", AHORA).ok).toBe(true)
+    expect(servicioDe(db).tickets.some((t) => t.id === "TK-0053")).toBe(false)
+    expect(porTurnar(db, AHORA).some((g) => g.station === "Pantitlán" && g.problema.id === "anden")).toBe(false)
+    const r = servicioDe(db).reportes.find((x) => x.id === "RS-0210")!
+    expect(r.descartado).toBe(AHORA)
+    expect(seguimientoServicio(db, r).mensaje).toContain("dio de baja")
+    expect(e.auditoria.some((a) => a.accion === "eliminar ticket")).toBe(true)
   })
 
   it("asigna la Mesa o quien encarga el área, y solo a personal de esa área", () => {

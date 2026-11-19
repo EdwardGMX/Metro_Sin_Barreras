@@ -220,6 +220,8 @@ export type ReporteServicio = {
   seudonimo: string
   verificado: boolean
   ticketId?: string
+  /** La Mesa eliminó el ticket de este reporte: ya no vuelve a la bandeja por turnar. */
+  descartado?: number
   /** Respuesta de la persona cuando el ticket se resolvió (RN14). */
   respuesta?: { ts: number; resuelto: boolean }
   demo?: boolean
@@ -393,6 +395,7 @@ export const ETAPAS_CIUDADANAS = ["Recibido", "Turnado al área", "En atención"
 
 export function seguimientoServicio(db: BaseDatos, r: ReporteServicio): Seguimiento {
   const t = r.ticketId ? servicioDe(db).tickets.find((x) => x.id === r.ticketId) : undefined
+  if (!t && r.descartado) return { etapa: 0, mensaje: "La Mesa de atención revisó tu reporte y lo dio de baja.", pideConfirmacion: false, solucionado: false }
   if (!t) return { etapa: 0, mensaje: "La Mesa de atención revisará tu reporte y lo turnará al área responsable.", pideConfirmacion: false, solucionado: false }
   const area = AREAS[t.area].nombre
   if (t.estado === "nuevo") return { etapa: 1, mensaje: `Se turnó a ${area}. Pronto lo asignarán a una persona.`, pideConfirmacion: false, solucionado: false, area: t.area, ticket: t }
@@ -451,7 +454,7 @@ export type GrupoPorTurnar = { clave: string; station: string; categoria: Catego
 export function porTurnar(db: BaseDatos, now: number, stations?: string[]): GrupoPorTurnar[] {
   const grupos = new Map<string, GrupoPorTurnar>()
   for (const r of servicioDe(db).reportes) {
-    if (r.ticketId || r.ts > now) continue
+    if (r.ticketId || r.descartado || r.ts > now) continue
     if (stations && !stations.includes(r.station)) continue
     const problema = problemaPorId(r.categoria, r.problema)
     if (!problema) continue
@@ -522,12 +525,12 @@ export type DatosTicket = { station: string; asunto: string; detalle: string; pr
 export const MAX_NOMBRE_TICKET = 80
 export const MAX_DESCRIPCION_TICKET = 300
 
-export function validarTicket(d: DatosTicket): string | null {
+export function validarTicket(d: DatosTicket, opciones: { descripcionOpcional?: boolean } = {}): string | null {
   if (d.area && !AREAS[d.area]) return "Esa área no existe."
   if (!allStations.includes(d.station)) return "Elige una estación de la lista."
   if (!d.asunto.trim()) return "Escribe el nombre del ticket."
   if (d.asunto.trim().length > MAX_NOMBRE_TICKET) return `El nombre debe tener ${MAX_NOMBRE_TICKET} caracteres o menos.`
-  if (!d.detalle.trim()) return "Escribe la descripción: qué pasa y dónde."
+  if (!d.detalle.trim() && !opciones.descripcionOpcional) return "Escribe la descripción: qué pasa y dónde."
   if (d.detalle.trim().length > MAX_DESCRIPCION_TICKET) return `La descripción debe tener ${MAX_DESCRIPCION_TICKET} caracteres o menos.`
   if (!["alta", "media", "baja"].includes(d.prioridad)) return "Elige la urgencia."
   if (d.lugar && !LUGARES.includes(d.lugar)) return "Elige un lugar de la lista."
@@ -588,6 +591,63 @@ export function turnarTicket(db: BaseDatos, e: EstadoConsola, quien: Cuenta, id:
   t.historial.push({ ts: now, texto: `Turnado a ${AREAS[area].nombre}`, por: quien.nombre })
   auditar(e, { ...actor(quien), accion: "turnar ticket", objeto: id, resultado: "permitido", detalle: AREAS[area].nombre }, now)
   return { ok: true, mensaje: `${id} quedó turnado a ${AREAS[area].nombre}.` }
+}
+
+export type CambiosTicket = { asunto: string; detalle: string; prioridad: Prioridad; area: AreaId }
+
+/** La Mesa de atención modifica el nombre, la descripción, la urgencia o el área de un ticket abierto. */
+export function editarTicket(db: BaseDatos, e: EstadoConsola, quien: Cuenta, id: string, c: CambiosTicket, now: number): Resultado {
+  const negado = exigir(e, quien, "tickets.gestionar", id, now)
+  if (negado) return negado
+  const t = servicioDe(db).tickets.find((x) => x.id === id)
+  if (!t || t.clase !== "ticket") return { ok: false, codigo: 400, mensaje: "No encontramos ese ticket." }
+  if (t.estado === "cerrado") return { ok: false, codigo: 409, mensaje: "Un ticket cerrado no se modifica." }
+  const error = validarTicket({ station: t.station, asunto: c.asunto, detalle: c.detalle, prioridad: c.prioridad, area: c.area }, { descripcionOpcional: t.origen === "persona_usuaria" })
+  if (error) return { ok: false, codigo: 400, mensaje: error }
+  const cambios: string[] = []
+  if (c.asunto.trim() !== t.asunto) cambios.push("nombre")
+  if (c.detalle.trim() !== (t.detalle ?? "")) cambios.push("descripción")
+  if (c.prioridad !== t.prioridad) cambios.push(`urgencia ${PRIORIDAD_LABEL[t.prioridad].toLowerCase()} → ${PRIORIDAD_LABEL[c.prioridad].toLowerCase()}`)
+  const cambiaArea = c.area !== t.area || t.porTurnar
+  if (cambiaArea) cambios.push(`área: ${AREAS[c.area].nombre}`)
+  if (cambios.length === 0) return { ok: true, mensaje: "No hubo cambios." }
+  t.asunto = c.asunto.trim()
+  t.detalle = c.detalle.trim() || undefined
+  t.prioridad = c.prioridad
+  if (c.area !== t.area) {
+    t.asignadoA = undefined
+    t.asignadoNombre = undefined
+    t.asignado = undefined
+    t.iniciado = undefined
+    if (t.estado !== "resuelto") t.estado = "nuevo"
+  }
+  t.area = c.area
+  t.porTurnar = undefined
+  t.historial.push({ ts: now, texto: `Modificado: ${cambios.join(", ")}`, por: quien.nombre })
+  auditar(e, { ...actor(quien), accion: "modificar ticket", objeto: id, resultado: "permitido", detalle: cambios.join(", ") }, now)
+  return { ok: true, mensaje: `Guardaste los cambios de ${id}.` }
+}
+
+/**
+ * La Mesa de atención elimina un ticket (por ejemplo, duplicado o levantado por error).
+ * Los reportes de personas usuarias que lo originaron quedan dados de baja y no vuelven a la bandeja.
+ * La eliminación queda en la bitácora de auditoría.
+ */
+export function eliminarTicket(db: BaseDatos, e: EstadoConsola, quien: Cuenta, id: string, now: number): Resultado {
+  const negado = exigir(e, quien, "tickets.gestionar", id, now)
+  if (negado) return negado
+  const sv = asegurar(db)
+  const t = sv.tickets.find((x) => x.id === id)
+  if (!t || t.clase !== "ticket") return { ok: false, codigo: 400, mensaje: "No encontramos ese ticket." }
+  sv.tickets = sv.tickets.filter((x) => x.id !== id)
+  for (const r of sv.reportes) {
+    if (r.ticketId === id) {
+      r.ticketId = undefined
+      r.descartado = now
+    }
+  }
+  auditar(e, { ...actor(quien), accion: "eliminar ticket", objeto: `${id} · ${t.station}`, resultado: "permitido", detalle: `«${t.asunto}» · ${AREAS[t.area].nombre}` }, now)
+  return { ok: true, mensaje: `Eliminaste el ticket ${id}.` }
 }
 
 const buscar = (db: BaseDatos, id: string) => servicioDe(db).tickets.find((t) => t.id === id)

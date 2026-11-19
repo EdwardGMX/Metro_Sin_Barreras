@@ -20,7 +20,8 @@ import {
   fueraDePlazo,
   idPersonal,
   levantarTicket,
-  turnarTicket,
+  editarTicket,
+  eliminarTicket,
   plazoUsado,
   porTurnar,
   reabrirTicket,
@@ -140,9 +141,9 @@ export function DetalleTicket({ ctx, id, onClose, perfil }: { ctx: Ctx; id: stri
   const t = id ? servicioDe(db).tickets.find((x) => x.id === id) : undefined
   const [quien, setQuien] = useState("")
   const [nota, setNota] = useState("")
-  const [areaTurnar, setAreaTurnar] = useState<AreaId | "">("")
   if (!t) return <Dialog open={false} onClose={onClose} title="Ticket">{null}</Dialog>
   const tarea = t.clase === "tarea"
+  const gestiona = puede(cuenta, "tickets.gestionar", ahora)
   const encarga = tarea ? puede(cuenta, "tareas.asignar", ahora) && (cuenta.estaciones ?? []).includes(t.station) : encargaArea(cuenta, t.area, t.station, ahora)
   const propio = t.asignadoA !== undefined && t.asignadoA === idPersonal(db, cuenta)
   const candidatos = asignables(db, t.area, t.station)
@@ -182,26 +183,7 @@ export function DetalleTicket({ ctx, id, onClose, perfil }: { ctx: Ctx; id: stri
           </div>
         )}
 
-        {!tarea && abierto(t) && puede(cuenta, "tickets.gestionar", ahora) && (
-          <div className={`tarjeta-suave ${t.porTurnar ? "border-2 border-[var(--rol)]" : ""}`}>
-            <label htmlFor="turnar-a" className="field-label">
-              {t.porTurnar ? "¿Qué área debe atenderlo?" : "Turnar a otra área"}
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <select id="turnar-a" className="field-select max-w-sm flex-1" value={areaTurnar} onChange={(e) => setAreaTurnar(e.target.value as AreaId | "")}>
-                <option value="">Elige un área</option>
-                {ORDEN_AREAS.filter((a) => t.porTurnar || a !== t.area).map((a) => (
-                  <option key={a} value={a}>
-                    {AREAS[a].nombre}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="boton-rol" disabled={!areaTurnar} onClick={() => areaTurnar && accion((d, e, now) => turnarTicket(d, e, cuenta, t.id, areaTurnar, now))}>
-                <Icon name="send" size="sm" /> Turnar
-              </button>
-            </div>
-          </div>
-        )}
+        {!tarea && gestiona && <GestionMesa key={t.id} ctx={ctx} t={t} onEliminado={onClose} />}
 
         {t.estado !== "cerrado" && (encarga || propio) && !t.porTurnar && (
           <div className="tarjeta-suave space-y-4">
@@ -224,7 +206,7 @@ export function DetalleTicket({ ctx, id, onClose, perfil }: { ctx: Ctx; id: stri
                 </div>
               </div>
             )}
-            {encarga && !tarea && abierto(t) && (
+            {encarga && !gestiona && !tarea && abierto(t) && (
               <fieldset>
                 <legend className="field-label">Prioridad</legend>
                 <div className="flex flex-wrap gap-2">
@@ -287,6 +269,139 @@ export function DetalleTicket({ ctx, id, onClose, perfil }: { ctx: Ctx; id: stri
   )
 }
 
+/** Lo que solo hace la Mesa de atención con un ticket: modificarlo o eliminarlo. */
+function GestionMesa({ ctx, t, onEliminado }: { ctx: Ctx; t: Ticket; onEliminado: () => void }) {
+  const { cuenta, operar } = ctx
+  const [editando, setEditando] = useState(Boolean(t.porTurnar))
+  const [confirmar, setConfirmar] = useState(false)
+  const [nombre, setNombre] = useState(t.asunto)
+  const [descripcion, setDescripcion] = useState(t.detalle ?? "")
+  const [urgencia, setUrgencia] = useState<TPrioridad>(t.prioridad)
+  const [area, setArea] = useState<AreaId>(t.area)
+  const [error, setError] = useState<string | null>(null)
+  const cerrado = t.estado === "cerrado"
+  const deUsuarios = t.origen === "persona_usuaria"
+
+  const guardar = (e: FormEvent) => {
+    e.preventDefault()
+    const r = operar((d, est, now) => editarTicket(d, est, cuenta, t.id, { asunto: nombre, detalle: descripcion, prioridad: urgencia, area }, now))
+    if (r.ok) {
+      setEditando(false)
+      setError(null)
+    } else setError(r.mensaje)
+  }
+  const eliminar = () => {
+    const r = operar((d, est, now) => eliminarTicket(d, est, cuenta, t.id, now))
+    if (r.ok) onEliminado()
+  }
+
+  return (
+    <div className={`tarjeta-suave space-y-3 ${t.porTurnar ? "border-2 border-[var(--rol)]" : ""}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-extrabold">{t.porTurnar ? "Elige el departamento de este ticket" : "Mesa de atención"}</p>
+        <div className="flex flex-wrap gap-2">
+          {!cerrado && !editando && (
+            <button type="button" className="boton-borde" onClick={() => setEditando(true)}>
+              <Icon name="clipboard" size="sm" /> Modificar
+            </button>
+          )}
+          {!confirmar && (
+            <button type="button" className="boton-borde boton-borde-urgencia" onClick={() => setConfirmar(true)}>
+              <Icon name="x" size="sm" /> Eliminar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {confirmar && (
+        <div className="callout callout-urgencia mt-0 flex-col" role="alert">
+          <p>
+            ¿Eliminar {t.id}? Desaparece de todas las bandejas
+            {deUsuarios ? " y los reportes de personas usuarias que lo originaron se dan de baja" : ""}. La eliminación queda en la bitácora.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="boton-urgencia" onClick={eliminar}>
+              <Icon name="x" size="sm" /> Sí, eliminar
+            </button>
+            <button type="button" className="boton-borde" onClick={() => setConfirmar(false)}>
+              No, conservarlo
+            </button>
+          </div>
+        </div>
+      )}
+
+      {editando && !cerrado && (
+        <form className="space-y-3" onSubmit={guardar} noValidate>
+          <div>
+            <label htmlFor={`editar-nombre-${t.id}`} className="field-label">
+              Nombre del ticket
+            </label>
+            <input id={`editar-nombre-${t.id}`} className="field-select" maxLength={MAX_NOMBRE_TICKET} value={nombre} onChange={(e) => setNombre(e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor={`editar-desc-${t.id}`} className="field-label">
+              Descripción{deUsuarios ? " (opcional)" : ""}
+            </label>
+            <textarea id={`editar-desc-${t.id}`} className="report-textarea min-h-20 w-full" maxLength={MAX_DESCRIPCION_TICKET} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <fieldset>
+              <legend className="field-label">Urgencia</legend>
+              <div className="grid grid-cols-3 gap-2">
+                {(["alta", "media", "baja"] as TPrioridad[]).map((p) => (
+                  <button key={p} type="button" className="opcion-grande justify-center px-1 py-1.5 text-xs font-bold" aria-pressed={urgencia === p} onClick={() => setUrgencia(p)}>
+                    {PRIORIDAD_LABEL[p]}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <div>
+              <label htmlFor={`editar-area-${t.id}`} className="field-label">
+                Departamento
+              </label>
+              <select id={`editar-area-${t.id}`} className="field-select" value={area} onChange={(e) => setArea(e.target.value as AreaId)}>
+                {ORDEN_AREAS.map((a) => (
+                  <option key={a} value={a}>
+                    {AREAS[a].nombre}
+                  </option>
+                ))}
+              </select>
+              {area !== t.area && t.asignadoNombre && <p className="mt-1 text-xs text-ink-muted">Al cambiar de departamento se quita la asignación a {t.asignadoNombre}.</p>}
+            </div>
+          </div>
+          {error && (
+            <p className="callout callout-warning mt-0" role="alert">
+              <Icon name="alert" size="sm" className="mt-0.5" />
+              {error}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" className="boton-rol" disabled={!nombre.trim()}>
+              <Icon name="check" size="sm" /> Guardar cambios
+            </button>
+            {!t.porTurnar && (
+              <button
+                type="button"
+                className="boton-borde"
+                onClick={() => {
+                  setEditando(false)
+                  setNombre(t.asunto)
+                  setDescripcion(t.detalle ?? "")
+                  setUrgencia(t.prioridad)
+                  setArea(t.area)
+                  setError(null)
+                }}
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
 /* ------------------------------------------------------------------ */
 /* Levantar ticket                                                     */
 /* ------------------------------------------------------------------ */
@@ -305,9 +420,11 @@ export function LevantarTicket({ ctx, open, onClose, perfil }: { ctx: Ctx; open:
   const [descripcion, setDescripcion] = useState("")
   const [prioridad, setPrioridad] = useState<TPrioridad>("media")
   const [station, setStation] = useState(estaciones[0] ?? "Tacubaya")
+  const [area, setArea] = useState<AreaId | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const reiniciar = () => {
+    setArea(null)
     setNombre("")
     setDescripcion("")
     setPrioridad("media")
@@ -319,7 +436,8 @@ export function LevantarTicket({ ctx, open, onClose, perfil }: { ctx: Ctx; open:
   }
   const enviar = (e: FormEvent) => {
     e.preventDefault()
-    const r = operar((d, est, now) => levantarTicket(d, est, cuenta, { station, asunto: nombre, detalle: descripcion, prioridad }, now))
+    if (!area) return setError("Elige el departamento que debe atenderlo.")
+    const r = operar((d, est, now) => levantarTicket(d, est, cuenta, { station, asunto: nombre, detalle: descripcion, prioridad, area }, now))
     if (r.ok) cerrar()
     else setError(r.mensaje)
   }
@@ -359,6 +477,23 @@ export function LevantarTicket({ ctx, open, onClose, perfil }: { ctx: Ctx; open:
           <p className="mt-1 text-xs text-ink-muted">Plazos: alta 4 h, media 24 h, baja 72 h.</p>
         </fieldset>
 
+        <fieldset>
+          <legend className="field-label">Departamento que lo atiende</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {ORDEN_AREAS.map((a) => (
+              <button key={a} type="button" className="opcion-grande py-2" aria-pressed={area === a} onClick={() => setArea(a)}>
+                <span className="opcion-icono size-9">
+                  <Icon name={ICONO_AREA[a]} size="sm" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-extrabold">{AREAS[a].nombre}</span>
+                  <span className="block truncate text-xs text-ink-muted">{AREAS[a].unidad.split(" (")[0]}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
         {estaciones.length > 1 && (
           <div>
             <label htmlFor="ticket-estacion" className="field-label">
@@ -372,7 +507,7 @@ export function LevantarTicket({ ctx, open, onClose, perfil }: { ctx: Ctx; open:
           </div>
         )}
 
-        <p className="text-sm text-ink-muted">La Mesa de atención lo recibe y lo turna al área que debe atenderlo.</p>
+        <p className="text-sm text-ink-muted">Llega directo al departamento que elijas. La Mesa de atención ve todos los tickets y puede corregirlos.</p>
 
         {error && (
           <p className="callout callout-warning mt-0" role="alert">
@@ -381,7 +516,7 @@ export function LevantarTicket({ ctx, open, onClose, perfil }: { ctx: Ctx; open:
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          <button type="submit" className="boton-rol min-h-12 flex-1" disabled={!nombre.trim() || !descripcion.trim()}>
+          <button type="submit" className="boton-rol min-h-12 flex-1" disabled={!area || !nombre.trim() || !descripcion.trim()}>
             <Icon name="send" size="sm" /> Levantar ticket
           </button>
         </div>
@@ -476,6 +611,7 @@ export function MesaAtencion({ ctx }: { ctx: Ctx }) {
   const [levantar, setLevantar] = useState(false)
   const [filtroArea, setFiltroArea] = useState<AreaId | "todas">("todas")
   const [filtroEst, setFiltroEst] = useState("todas")
+  const [vista, setVista] = useState<"usuarios" | "personal">("usuarios")
   const sv = servicioDe(db)
   const tickets = sv.tickets.filter((t) => t.clase === "ticket")
   const grupos = porTurnar(db, ahora)
@@ -484,7 +620,10 @@ export function MesaAtencion({ ctx }: { ctx: Ctx }) {
   const vencidos = abiertos.length - enPlazo
   const porArea = abiertosPorArea(tickets)
   const maxArea = Math.max(1, ...porArea.map((x) => x.n))
-  const visibles = tickets.filter((t) => t.estado !== "cerrado" && (filtroArea === "todas" || t.area === filtroArea) && (filtroEst === "todas" || t.station === filtroEst))
+  const origen = vista === "usuarios" ? "persona_usuaria" : "personal"
+  const visibles = tickets.filter((t) => t.origen === origen && t.estado !== "cerrado" && (filtroArea === "todas" || t.area === filtroArea) && (filtroEst === "todas" || t.station === filtroEst))
+  const nUsuarios = grupos.length + tickets.filter((t) => t.origen === "persona_usuaria" && t.estado !== "cerrado").length
+  const nPersonal = tickets.filter((t) => t.origen === "personal" && t.estado !== "cerrado").length
   const estaciones = [...new Set(tickets.filter((t) => t.estado !== "cerrado").map((t) => t.station))].sort()
   const ticketsPorTurnar = tickets.filter((t) => t.porTurnar && abierto(t)).length
   const pendientes = grupos.length + vencidos + ticketsPorTurnar
@@ -533,56 +672,72 @@ export function MesaAtencion({ ctx }: { ctx: Ctx }) {
         </Vistazo>
       </div>
 
-      <section aria-labelledby="por-turnar" className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <h2 id="por-turnar" className="seccion-titulo flex items-center gap-2">
-            <Icon name="inbox" /> Reportes de personas usuarias por turnar
-          </h2>
-          <p className="text-sm text-ink-muted">Los reportes iguales se agrupan; con 3 personas o más sube la prioridad.</p>
-        </div>
-        {grupos.length === 0 ? (
-          <p className="tarjeta text-center font-bold text-success">
-            <Icon name="check" className="mr-1 inline" /> No hay reportes por turnar.
-          </p>
-        ) : (
-          <ul className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-            {grupos.map((g) => (
-              <GrupoCard key={g.clave} g={g} ctx={ctx} />
-            ))}
-          </ul>
-        )}
-      </section>
+      <div className="pestanas" role="tablist" aria-label="Qué reportes ver">
+        <button type="button" role="tab" className="pestana" aria-selected={vista === "usuarios"} aria-controls="mesa-panel" onClick={() => setVista("usuarios")}>
+          <Icon name="people" size="sm" /> De personas usuarias <span className="pestana-n">{nUsuarios}</span>
+        </button>
+        <button type="button" role="tab" className="pestana" aria-selected={vista === "personal"} aria-controls="mesa-panel" onClick={() => setVista("personal")}>
+          <Icon name="user" size="sm" /> Del personal <span className="pestana-n">{nPersonal}</span>
+        </button>
+      </div>
 
-      <section aria-labelledby="tickets-titulo" className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 id="tickets-titulo" className="seccion-titulo flex items-center gap-2">
-            <Icon name="ticket" /> Tickets de todas las áreas
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            <label className="sr-only" htmlFor="filtro-area">
-              Área
-            </label>
-            <select id="filtro-area" className="field-select min-h-11 w-auto text-sm" value={filtroArea} onChange={(e) => setFiltroArea(e.target.value as AreaId | "todas")}>
-              <option value="todas">Todas las áreas</option>
-              {ORDEN_AREAS.map((a) => (
-                <option key={a} value={a}>
-                  {AREAS[a].nombre}
-                </option>
-              ))}
-            </select>
-            <label className="sr-only" htmlFor="filtro-estacion">
-              Estación
-            </label>
-            <select id="filtro-estacion" className="field-select min-h-11 w-auto text-sm" value={filtroEst} onChange={(e) => setFiltroEst(e.target.value)}>
-              <option value="todas">Todas las estaciones</option>
-              {estaciones.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
+      <div id="mesa-panel" role="tabpanel" className="space-y-5">
+        {vista === "usuarios" && (
+          <section aria-labelledby="por-turnar" className="space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <h2 id="por-turnar" className="seccion-titulo flex items-center gap-2">
+                <Icon name="inbox" /> Reportes de personas usuarias por turnar
+              </h2>
+              <p className="text-sm text-ink-muted">Los reportes iguales se agrupan; con 3 personas o más sube la prioridad.</p>
+            </div>
+            {grupos.length === 0 ? (
+              <p className="tarjeta text-center font-bold text-success">
+                <Icon name="check" className="mr-1 inline" /> No hay reportes por turnar.
+              </p>
+            ) : (
+              <ul className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                {grupos.map((g) => (
+                  <GrupoCard key={g.clave} g={g} ctx={ctx} />
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        <section aria-labelledby="tickets-titulo" className="space-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 id="tickets-titulo" className="seccion-titulo flex items-center gap-2">
+                <Icon name="ticket" /> {vista === "usuarios" ? "Tickets de reportes de personas usuarias" : "Tickets que levantó el personal"}
+              </h2>
+              <p className="text-sm text-ink-muted">Abre un ticket para modificar su nombre, descripción, urgencia o departamento, o para eliminarlo.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className="sr-only" htmlFor="filtro-area">
+                Departamento
+              </label>
+              <select id="filtro-area" className="field-select min-h-11 w-auto text-sm" value={filtroArea} onChange={(e) => setFiltroArea(e.target.value as AreaId | "todas")}>
+                <option value="todas">Todos los departamentos</option>
+                {ORDEN_AREAS.map((a) => (
+                  <option key={a} value={a}>
+                    {AREAS[a].nombre}
+                  </option>
+                ))}
+              </select>
+              <label className="sr-only" htmlFor="filtro-estacion">
+                Estación
+              </label>
+              <select id="filtro-estacion" className="field-select min-h-11 w-auto text-sm" value={filtroEst} onChange={(e) => setFiltroEst(e.target.value)}>
+                <option value="todas">Todas las estaciones</option>
+                {estaciones.map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
-        <TableroTickets tickets={visibles} now={ahora} onAbrir={setAbiertoId} />
-      </section>
+          <TableroTickets tickets={visibles} now={ahora} onAbrir={setAbiertoId} />
+        </section>
+      </div>
 
       <DetalleTicket key={abiertoId ?? "ninguno"} ctx={ctx} id={abiertoId} onClose={() => setAbiertoId(null)} perfil="mesa" />
       <LevantarTicket ctx={ctx} open={levantar} onClose={() => setLevantar(false)} perfil="mesa" />
