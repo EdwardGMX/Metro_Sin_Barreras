@@ -97,3 +97,36 @@ export function useSirena(activa: boolean): { bloqueado: boolean; activarSonido:
 
   return { bloqueado, activarSonido }
 }
+
+/**
+ * Tono de llamada («ring-back») mientras suena del lado de quien llama: 425 Hz, 1 s encendido y
+ * 4 s apagado, como el tono de llamada de México. Volumen bajo.
+ */
+export function useTonoLlamada(activo: boolean) {
+  useEffect(() => {
+    if (!activo) return
+    const a = audio()
+    if (!a) return
+    const tono = () => {
+      if (a.state !== "running") {
+        void a.resume().catch(() => undefined)
+        return
+      }
+      const t0 = a.currentTime + 0.02
+      const osc = a.createOscillator()
+      const gain = a.createGain()
+      osc.type = "sine"
+      osc.frequency.value = 425
+      gain.gain.setValueAtTime(0.0001, t0)
+      gain.gain.exponentialRampToValueAtTime(0.07, t0 + 0.03)
+      gain.gain.setValueAtTime(0.07, t0 + 0.95)
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 1)
+      osc.connect(gain).connect(a.destination)
+      osc.start(t0)
+      osc.stop(t0 + 1.05)
+    }
+    tono()
+    const id = window.setInterval(tono, 5000)
+    return () => window.clearInterval(id)
+  }, [activo])
+}

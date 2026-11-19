@@ -7,7 +7,12 @@ import {
   activarUrgencia,
   atenderUrgencia,
   CIERRAN,
+  colgarOficial,
+  CONTESTAN,
+  contestarLlamada,
   debeSonar,
+  ESCALA_JEFATURA,
+  marcarMalUso,
   INFO_URGENCIA,
   LUGARES_URGENCIA,
   marcarEnterado,
@@ -146,35 +151,111 @@ function DialogoUrgencia({ ctx, open, onClose }: { ctx: Ctx; open: boolean; onCl
 /* Alertas                                                             */
 /* ------------------------------------------------------------------ */
 
+const mmss = (ms: number) => {
+  const x = Math.max(0, Math.floor(ms / 1000))
+  return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`
+}
+
+function useSegundero(activo: boolean) {
+  const [t, setT] = useState(() => Date.now())
+  useEffect(() => {
+    if (!activo) return
+    setT(Date.now())
+    const id = window.setInterval(() => setT(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [activo])
+  return t
+}
+
 function TarjetaUrgencia({ u, ctx, suena }: { u: Urgencia; ctx: Ctx; suena: boolean }) {
   const info = INFO_URGENCIA[u.tipo]
   const { cuenta, ahora, operar } = ctx
   const cierra = cuenta.roles.some((r) => CIERRAN.includes(r)) && (cuenta.estaciones ?? []).includes(u.station)
   const deLaEstacion = (cuenta.estaciones ?? []).includes(u.station)
   const activa = u.estado === "activa"
+  const deUsuaria = u.origen === "usuaria"
+  const l = u.llamada
+  const contesta = deLaEstacion && cuenta.roles.some((r) => CONTESTAN.includes(r))
+  const mia = l?.contestadaPorCuenta === cuenta.id
+  const t = useSegundero(Boolean(activa && l && l.estado !== "terminada"))
+  const now = Math.max(t, ahora)
+  const [confirmarMalUso, setConfirmarMalUso] = useState(false)
+  const etiqueta = !activa ? (u.estado === "cancelada" ? "Cancelada por la persona" : u.resultado === "mal_uso" ? "Marcada como mal uso" : "Atendida") : deUsuaria ? (l?.estado === "sonando" ? "Llamada entrante" : l?.estado === "en_curso" ? "En llamada" : "Llamada terminada") : "Urgencia activa"
   return (
     <li className={`urgencia-tarjeta ${activa ? "urgencia-activa" : "urgencia-cerrada"} ${suena ? "urgencia-suena" : ""}`}>
       <Pictograma tipo={u.tipo} size={88} />
       <div className="min-w-0 flex-1">
-        <p className="urgencia-etiqueta">{activa ? "Urgencia activa" : "Atendida"} · {u.id}</p>
-        <p className="text-2xl font-extrabold leading-tight">{info.nombre}</p>
+        <p className="flex flex-wrap items-center gap-2">
+          <span className="urgencia-etiqueta">
+            {etiqueta} · {u.id}
+          </span>
+          {deUsuaria && (
+            <span className="chip">
+              <Icon name="user" className="size-3.5" /> Persona usuaria · {u.llaveVerificada ? "Llave Verificada" : "Llave"}
+            </span>
+          )}
+          {u.apoyoMovilidad && (
+            <span className="chip chip-estado-warn">
+              <Icon name="wheelchair" className="size-3.5" /> Necesita apoyo de movilidad
+            </span>
+          )}
+        </p>
+        <p className="mt-1 text-2xl font-extrabold leading-tight">{deUsuaria && u.tipo === "auxilio" ? "Pide ayuda de seguridad" : info.nombre}</p>
         <p className="mt-1 flex flex-wrap items-center gap-x-2 text-base font-bold">
           <Icon name="location" size="sm" /> {u.station} · {u.lugar}
         </p>
         <p className="mt-0.5 text-sm text-ink-muted">
-          {hora(u.ts)} ({hace(u.ts, ahora)}) · la activó {u.activadaPor}
+          {hora(u.ts)} ({hace(u.ts, ahora)}) · {deUsuaria ? "llamó desde Mi cuenta (no ves su nombre)" : `la activó ${u.activadaPor}`}
           {u.atendidaPor && ` · la cerró ${u.atendidaPor} a las ${hora(u.atendida!)}`}
         </p>
+
+        {deUsuaria && l && activa && (
+          <div className={`llamada-barra llamada-barra-${l.estado}`} role="status">
+            <Icon name="phone" size="sm" />
+            {l.estado === "sonando" && (
+              <span>
+                Sonando · <span className="tabular-nums">{mmss(now - u.ts)}</span>
+                {now - u.ts >= ESCALA_JEFATURA ? " · avisamos también a la jefatura" : ""}
+              </span>
+            )}
+            {l.estado === "en_curso" && (
+              <span>
+                {mia ? "Estás en llamada" : `La contestó ${l.contestadaPor}`} · <span className="tabular-nums">{mmss(now - (l.contestada ?? now))}</span>
+              </span>
+            )}
+            {l.estado === "terminada" && (
+              <span>
+                Llamada terminada ({l.colgo === "usuaria" ? "colgó la persona" : "colgó el oficial"}) · duró {mmss((l.fin ?? now) - (l.contestada ?? l.fin ?? now))}
+              </span>
+            )}
+          </div>
+        )}
+
         {activa && (
           <div className="mt-3 flex flex-wrap gap-2">
-            {deLaEstacion && !u.enterados.includes(cuenta.id) && (
+            {deUsuaria && l?.estado === "sonando" && contesta && (
+              <button type="button" className="boton-contestar" onClick={() => operar((d, e, n) => contestarLlamada(d, e, cuenta, u.id, n))}>
+                <Icon name="phone" size="sm" /> Contestar llamada
+              </button>
+            )}
+            {deUsuaria && l?.estado === "en_curso" && mia && (
+              <button type="button" className="boton-colgar" onClick={() => operar((d, e, n) => colgarOficial(d, e, cuenta, u.id, n))}>
+                <Icon name="phone" size="sm" /> Colgar
+              </button>
+            )}
+            {!deUsuaria && deLaEstacion && !u.enterados.includes(cuenta.id) && (
               <button type="button" className="boton-urgencia" onClick={() => operar((d) => marcarEnterado(d, cuenta, u.id))}>
                 <Icon name="check" size="sm" /> Enterado, voy
               </button>
             )}
-            {cierra && (
+            {cierra && (!deUsuaria || l?.estado !== "sonando") && (
               <button type="button" className="boton-borde boton-borde-urgencia" onClick={() => operar((d, e, now) => atenderUrgencia(d, e, cuenta, u.id, now))}>
                 <Icon name="shield" size="sm" /> Cerrar como atendida
+              </button>
+            )}
+            {cierra && deUsuaria && l?.estado !== "sonando" && !confirmarMalUso && (
+              <button type="button" className="boton-borde" onClick={() => setConfirmarMalUso(true)}>
+                <Icon name="alert" size="sm" /> Marcar mal uso
               </button>
             )}
             <a href="tel:911" className="boton-borde boton-borde-urgencia">
@@ -182,7 +263,21 @@ function TarjetaUrgencia({ u, ctx, suena }: { u: Urgencia; ctx: Ctx; suena: bool
             </a>
           </div>
         )}
+        {confirmarMalUso && activa && (
+          <div className="callout callout-urgencia mt-3 flex-col" role="alert">
+            <p>¿Marcar {u.id} como mal uso? Cuenta para esta persona: con 2 marcas en 90 días se le bloquea el botón 30 días. Queda en la bitácora.</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="boton-urgencia" onClick={() => operar((d, e, now) => marcarMalUso(d, e, cuenta, u.id, now))}>
+                Sí, fue mal uso
+              </button>
+              <button type="button" className="boton-borde" onClick={() => setConfirmarMalUso(false)}>
+                No
+              </button>
+            </div>
+          </div>
+        )}
         {activa && !deLaEstacion && <p className="mt-2 text-sm font-bold">Avisamos al personal de {u.station}. La cierra su jefatura o su personal de seguridad.</p>}
+        {deUsuaria && activa && <p className="mt-2 text-xs text-ink-muted">En el prototipo la voz es simulada; en producción la llamada entra por la app.</p>}
       </div>
     </li>
   )
@@ -231,7 +326,7 @@ export function PanelUrgencias({ ctx }: { ctx: Ctx }) {
       </h2>
       {sonando.length > 0 && (
         <p className="sr-only" role="alert">
-          Urgencia: {INFO_URGENCIA[sonando[0].tipo].nombre} en {sonando[0].station}, {sonando[0].lugar}.
+          {sonando[0].origen === "usuaria" ? `Llamada entrante de una persona usuaria en ${sonando[0].station}` : `Urgencia: ${INFO_URGENCIA[sonando[0].tipo].nombre} en ${sonando[0].station}`}, {sonando[0].lugar}.
         </p>
       )}
       {bloqueado && (

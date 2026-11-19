@@ -22,6 +22,7 @@ import { guardar, leer } from "../../lib/storage"
 import { Icon } from "../Icon"
 import { DialogoLlave, entrarConLlave, type Sesion } from "../Reports"
 import { BarraEstados, duracion, hace, ICONO_CATEGORIA, Letrero, Trayecto, Vistazo } from "./Visual"
+import { LlamarSeguridad } from "../urgencias/LlamarSeguridad"
 
 const CLAVE_FAVORITAS = "msb.favoritas"
 
@@ -312,7 +313,10 @@ export function MiCuenta({
         )}
       </div>
 
-      <div className="vista-dos">
+      <div className="vista-dos vista-dos-llamar">
+        <div className="lugar-llamar">
+          <LlamarSeguridad db={db} actualizar={actualizar} sesion={activa} />
+        </div>
         <section className="min-w-0 space-y-3" aria-label="Mis reportes">
           <div className="pestanas" role="tablist" aria-label="Mis reportes">
             {pestanas.map((x) => (

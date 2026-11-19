@@ -597,6 +597,7 @@ export function eventosDe(db: BaseDatos, e: Empleado, auditoria: EstadoConsola["
   for (const u of urgenciasDe(db)) {
     if (u.activadaPor === e.nombre) out.push({ ts: u.ts, tipo: "urgencia", texto: "Activó una urgencia", detalle: `${u.id} · ${u.station} · ${u.lugar}` })
     if (u.atendidaPor === e.nombre && u.atendida) out.push({ ts: u.atendida, tipo: "urgencia", texto: "Cerró una urgencia como atendida", detalle: `${u.id} · ${u.station}` })
+    if (u.llamada?.contestadaPor === e.nombre && u.llamada.contestada) out.push({ ts: u.llamada.contestada, tipo: "urgencia", texto: "Contestó una llamada de una persona usuaria", detalle: `${u.id} · ${u.station} · ${u.lugar}` })
   }
   for (const a of auditoria) if (a.actor.startsWith(`${e.nombre} <`) && a.accion === "inicio de sesión" && a.resultado === "permitido") out.push({ ts: a.ts, tipo: "acceso", texto: "Inició sesión en la consola" })
   return out.sort((a, b) => b.ts - a.ts).slice(0, max)

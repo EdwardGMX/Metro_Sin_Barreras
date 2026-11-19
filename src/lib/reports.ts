@@ -24,6 +24,8 @@ export type Usuario = {
   verificado: boolean
   consentimiento?: { fecha: number; version: string }
   alta: number
+  /** Llamadas a seguridad que el personal marcó como mal uso (RN17). */
+  malUso?: number[]
 }
 
 export type Reporte = {

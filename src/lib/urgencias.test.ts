@@ -4,7 +4,24 @@
 import { describe, expect, it } from "vitest"
 import { estadoInicial, type Cuenta, type EstadoConsola } from "./admin"
 import { baseVacia } from "./reports"
-import { activarUrgencia, atenderUrgencia, debeSonar, marcarEnterado, ubicacionesParaMesa, urgenciasDe, urgenciasVisibles, VIGENCIA_URGENCIA } from "./urgencias"
+import {
+  activarUrgencia,
+  atenderUrgencia,
+  bloqueoPorMalUso,
+  colgarOficial,
+  colgarPersonaUsuaria,
+  contestarLlamada,
+  debeSonar,
+  ESCALA_JEFATURA,
+  llamarASeguridad,
+  marcarEnterado,
+  marcarMalUso,
+  ubicacionesParaMesa,
+  ultimaLlamada,
+  urgenciasDe,
+  urgenciasVisibles,
+  VIGENCIA_URGENCIA,
+} from "./urgencias"
 
 const AHORA = new Date(2026, 10, 19, 10, 0).getTime()
 const c = (e: EstadoConsola, id: string) => e.cuentas.find((x) => x.id === id) as Cuenta
@@ -69,5 +86,100 @@ describe("Urgencias graves (RN15)", () => {
     const { e, db } = preparar()
     activarUrgencia(db, e, c(e, "C-PE-TAC"), vias, AHORA)
     expect(debeSonar(db, c(e, "C-SEG-TAC"), AHORA + VIGENCIA_URGENCIA + 1)).toHaveLength(0)
+  })
+
+  describe("Llamada de una persona usuaria a seguridad (RN17)", () => {
+    const ana = { seudonimo: "seud-ana", nivel: "Llave Verificada" as const }
+    const conAna = () => {
+      const p = preparar()
+      p.db.usuarios[ana.seudonimo] = { seudonimo: ana.seudonimo, nivel: ana.nivel, verificado: false, alta: AHORA }
+      return p
+    }
+
+    it("pide sesión y solo llama a estaciones con seguridad en el piloto", () => {
+      const { db } = preparar()
+      expect(llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "robo" }, AHORA).ok).toBe(false)
+      const p = conAna()
+      expect(llamarASeguridad(p.db, ana, { station: "Chapultepec", motivo: "robo" }, AHORA).ok).toBe(false)
+      expect(llamarASeguridad(p.db, ana, { station: "Tacubaya", motivo: "robo", lugar: "Mi casa" }, AHORA).ok).toBe(false)
+      const r = llamarASeguridad(p.db, ana, { station: "Tacubaya", motivo: "acoso", lugar: "Dentro del tren", apoyoMovilidad: true }, AHORA)
+      expect(r.ok).toBe(true)
+      const u = urgenciasDe(p.db)[0]
+      expect(u.origen).toBe("usuaria")
+      expect(u.llamada?.estado).toBe("sonando")
+      expect(u.llaveVerificada).toBe(true)
+      expect(p.db.bitacora[0].evento).toBe("llamada a seguridad")
+    })
+
+    it("suena para seguridad de esa estación; a la jefatura, solo si nadie contesta en 30 s", () => {
+      const { e, db } = conAna()
+      llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "robo" }, AHORA)
+      expect(debeSonar(db, c(e, "C-SEG-TAC"), AHORA)).toHaveLength(1)
+      expect(debeSonar(db, c(e, "C-PE-TAC"), AHORA)).toHaveLength(0)
+      expect(debeSonar(db, c(e, "C-JE-TAC"), AHORA)).toHaveLength(0)
+      expect(debeSonar(db, c(e, "C-JE-TAC"), AHORA + ESCALA_JEFATURA)).toHaveLength(1)
+      expect(debeSonar(db, c(e, "C-JE-PAN"), AHORA + ESCALA_JEFATURA)).toHaveLength(0)
+      expect(urgenciasVisibles(db, c(e, "C-PE-TAC"), AHORA)).toHaveLength(1) // la ve, sin sonido
+      expect(ubicacionesParaMesa(db, c(e, "C-MESA"), AHORA)).toHaveLength(1)
+    })
+
+    it("contesta el primero; al segundo le dice quién la tomó y deja de sonar para todos", () => {
+      const { e, db } = conAna()
+      const r = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "medica" }, AHORA)
+      const id = r.ok ? r.id : ""
+      expect(contestarLlamada(db, e, c(e, "C-PE-TAC"), id, AHORA).ok).toBe(false) // personal de estación no contesta
+      expect(contestarLlamada(db, e, c(e, "C-SEG-TAC"), id, AHORA + 5_000).ok).toBe(true)
+      const segundo = contestarLlamada(db, e, c(e, "C-JE-TAC"), id, AHORA + ESCALA_JEFATURA)
+      expect(segundo.ok).toBe(false)
+      if (!segundo.ok) expect(segundo.mensaje).toContain("Karla")
+      expect(debeSonar(db, c(e, "C-SEG-TAC"), AHORA + 6_000)).toHaveLength(0)
+      expect(debeSonar(db, c(e, "C-JE-TAC"), AHORA + ESCALA_JEFATURA)).toHaveLength(0)
+      expect(colgarOficial(db, e, c(e, "C-JE-TAC"), id, AHORA + 60_000).ok).toBe(false) // solo cuelga quien contestó
+      expect(colgarOficial(db, e, c(e, "C-SEG-TAC"), id, AHORA + 60_000).ok).toBe(true)
+      expect(ultimaLlamada(db, ana.seudonimo)?.llamada?.estado).toBe("terminada")
+      expect(e.auditoria.some((a) => a.accion === "contestar llamada")).toBe(true)
+    })
+
+    it("la persona puede cancelar mientras suena; una sola llamada abierta y máximo 3 al día", () => {
+      const { db } = conAna()
+      const a = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "auxilio" }, AHORA)
+      const b = llamarASeguridad(db, ana, { station: "Pantitlán", motivo: "robo" }, AHORA + 1000)
+      expect(a.ok && b.ok && a.id === b.id).toBe(true)
+      expect(colgarPersonaUsuaria(db, ana.seudonimo, a.ok ? a.id : "", AHORA + 2000).ok).toBe(true)
+      expect(urgenciasDe(db)[0].estado).toBe("cancelada")
+      for (let i = 0; i < 2; i++) {
+        const r = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "auxilio" }, AHORA + 10_000 * (i + 1))
+        colgarPersonaUsuaria(db, ana.seudonimo, r.ok ? r.id : "", AHORA + 10_000 * (i + 1) + 1)
+      }
+      const cuarta = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "auxilio" }, AHORA + 60_000)
+      expect(cuarta.ok).toBe(false)
+      if (!cuarta.ok) expect(cuarta.codigo).toBe(429)
+    })
+
+    it("dos marcas de mal uso en 90 días bloquean el botón 30 días", () => {
+      const { e, db } = conAna()
+      const r1 = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "auxilio" }, AHORA)
+      expect(marcarMalUso(db, e, c(e, "C-PE-TAC"), r1.ok ? r1.id : "", AHORA).ok).toBe(false)
+      expect(marcarMalUso(db, e, c(e, "C-SEG-TAC"), r1.ok ? r1.id : "", AHORA + 60_000).ok).toBe(true)
+      expect(bloqueoPorMalUso(db, ana.seudonimo, AHORA + 60_000)).toBeNull()
+      const r2 = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "auxilio" }, AHORA + 2 * 86_400_000)
+      expect(marcarMalUso(db, e, c(e, "C-JE-TAC"), r2.ok ? r2.id : "", AHORA + 2 * 86_400_000).ok).toBe(true)
+      const ahora = AHORA + 2 * 86_400_000 + 1
+      expect(bloqueoPorMalUso(db, ana.seudonimo, ahora)).not.toBeNull()
+      const bloqueada = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "robo" }, ahora)
+      expect(bloqueada.ok).toBe(false)
+      if (!bloqueada.ok) expect(bloqueada.codigo).toBe(403)
+      expect(bloqueoPorMalUso(db, ana.seudonimo, ahora + 31 * 86_400_000)).toBeNull()
+    })
+
+    it("cerrar como atendida termina la llamada", () => {
+      const { e, db } = conAna()
+      const r = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "robo" }, AHORA)
+      contestarLlamada(db, e, c(e, "C-SEG-TAC"), r.ok ? r.id : "", AHORA + 1000)
+      expect(atenderUrgencia(db, e, c(e, "C-SEG-TAC"), r.ok ? r.id : "", AHORA + 120_000).ok).toBe(true)
+      const u = ultimaLlamada(db, ana.seudonimo)!
+      expect(u.resultado).toBe("atendida")
+      expect(u.llamada?.estado).toBe("terminada")
+    })
   })
 })

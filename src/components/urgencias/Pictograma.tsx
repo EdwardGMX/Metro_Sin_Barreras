@@ -50,6 +50,24 @@ const DIBUJOS: Record<TipoUrgencia, ReactNode> = {
       <path {...S} d="M4 20h8M3 28h8M5 36h8" strokeWidth={2.5} />
     </>
   ),
+  // Una persona levanta la mano para detener a otra que se le acerca.
+  acoso: (
+    <>
+      <circle cx="17" cy="17" r="4.5" {...S} strokeWidth={3} />
+      <path {...S} d="M18 22l3 16M21 38l-4 12M21 38l5 12M19 27l9 1" strokeWidth={3} strokeDasharray="0" />
+      {cabeza(44, 15)}
+      <path {...S} d="M44 20v18M44 38l-5 12M44 38l5 12M44 26l-8-5M44 27l6 5" />
+      <rect x="30" y="14" width="6" height="8" rx="2" fill="#fff" />
+      <path {...S} d="M32 6v3M27 8l2 2M37 8l-2 2" strokeWidth={2.5} />
+    </>
+  ),
+  // Auricular de teléfono con ondas: pide ayuda de seguridad.
+  auxilio: (
+    <>
+      <path d="M21 13c-3 0-6 3-6 7 0 15 14 29 29 29 4 0 7-3 7-6v-5l-9-3-4 4c-6-2-10-7-12-12l4-4-3-10h-6Z" fill="#fff" />
+      <path {...S} d="M38 11a14 14 0 0 1 15 15M38 18a7 7 0 0 1 8 8" strokeWidth={3} />
+    </>
+  ),
   // Cruz médica con línea de pulso.
   medica: (
     <>

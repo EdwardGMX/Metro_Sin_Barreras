@@ -103,6 +103,21 @@ export default function App() {
 
   useEffect(() => guardar(CLAVE_PERFIL, perfiles), [perfiles])
 
+  // Otra pestaña (por ejemplo, la consola del personal) cambió los datos: se reflejan aquí al
+  // instante, como cuando un oficial contesta una llamada a seguridad. En producción, por la API.
+  useEffect(() => {
+    const alCambiar = (ev: StorageEvent) => {
+      if (ev.key !== CLAVE_DB || !ev.newValue) return
+      try {
+        setDb(JSON.parse(ev.newValue) as BaseDatos)
+      } catch {
+        /* valor inválido: se ignora */
+      }
+    }
+    window.addEventListener("storage", alCambiar)
+    return () => window.removeEventListener("storage", alCambiar)
+  }, [])
+
   // Retención automática (RD-12): evidencias de más de 90 días y reportes de más de 12 meses.
   useEffect(() => {
     const copia = structuredClone(db)

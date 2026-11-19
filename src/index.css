@@ -805,3 +805,70 @@ dialog::backdrop { background: rgba(16, 47, 58, 0.55); }
 .cifra-parte-barra { height: 6px; border-radius: 999px; background: var(--rol-suave); }
 .cifra-parte-barra span { display: block; height: 100%; border-radius: 999px; background: var(--rol); }
 .cifra-partes li > span:last-child { text-align: right; }
+
+/* Llamar a seguridad desde Mi cuenta (RN17) ------------------------------ */
+@media (min-width: 1100px) {
+  .vista-dos-llamar { grid-template-rows: auto 1fr; }
+  .vista-dos-llamar > .lugar-llamar { grid-column: 2; grid-row: 1; }
+  .vista-dos-llamar > section { grid-column: 1; grid-row: 1 / span 2; }
+  .vista-dos-llamar > aside { grid-column: 2; grid-row: 2; }
+}
+.llamar-seguridad { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.75rem 0.9rem; align-items: start; padding: 1rem 1.1rem; border-radius: 1rem; border: 2px solid var(--urg); background: linear-gradient(135deg, var(--urg-suave), #fff 70%); color: var(--color-ink); }
+.llamar-icono { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 0.9rem; background: var(--urg); color: #fff; }
+.boton-llamar { grid-column: 1 / -1; display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; min-height: 3.25rem; border-radius: 0.9rem; background: var(--urg); color: #fff; font-size: 1.0625rem; font-weight: 800; box-shadow: 0 6px 16px rgb(179 38 30 / 0.28); }
+.boton-llamar:hover { background: var(--urg-tinta); }
+.boton-llamar:disabled { cursor: not-allowed; background: #8a9399; box-shadow: none; }
+.boton-llamar:focus-visible { outline: 3px solid var(--color-ink); outline-offset: 3px; }
+.llamar-911 { grid-column: 1 / -1; font-size: 0.8125rem; color: var(--color-ink-muted); }
+.llamar-activa { border-width: 3px; }
+@media (prefers-reduced-motion: no-preference) { .llamar-activa .llamar-icono { animation: urgencia-latido 1.2s ease-in-out infinite; } }
+.llamar-pasos { display: flex; gap: 0.5rem; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; font-weight: 800; color: var(--color-ink-muted); }
+.llamar-pasos li { display: inline-flex; align-items: center; gap: 0.35rem; flex: 1; padding-bottom: 0.4rem; border-bottom: 3px solid var(--color-border); }
+.llamar-pasos li span { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 999px; background: var(--color-surface); font-size: 0.75rem; }
+.llamar-pasos li.actual { color: var(--urg-tinta); border-bottom-color: var(--urg); }
+.llamar-pasos li.actual span { background: var(--urg); color: #fff; }
+.llamar-geo { display: flex; gap: 0.6rem; padding: 0.8rem 0.9rem; border-radius: 0.9rem; background: var(--color-surface); }
+.llamar-geo-listo { background: var(--color-success-soft); }
+.llamar-geo-error { background: var(--color-warning-soft); }
+.aviso-mal-uso { padding: 0.9rem 1rem; border-radius: 0.9rem; border: 2px solid var(--urg); background: var(--urg-suave); color: var(--urg-tinta); }
+.aviso-mal-uso ul { margin: 0.5rem 0 0; padding-left: 1.2rem; display: grid; gap: 0.3rem; font-size: 0.875rem; list-style: disc; color: var(--color-ink); }
+.llamar-resumen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem 1rem; margin: 0; padding: 0.75rem 0.9rem; border-radius: 0.9rem; border: 1.5px solid var(--color-border); }
+.llamar-resumen dt { font-size: 0.6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-ink-muted); }
+.llamar-resumen dd { margin: 0; font-size: 0.875rem; font-weight: 700; }
+
+/* Pantalla de la llamada */
+.llamada { display: grid; gap: 1rem; padding: 1.5rem 0 1rem; background: linear-gradient(180deg, #102f3a, #1b4552); color: #fff; }
+.llamada-centro { display: grid; justify-items: center; gap: 0.3rem; padding: 0.5rem 1.5rem 0; text-align: center; }
+.llamada-ondas { position: relative; display: grid; place-items: center; width: 7.5rem; height: 7.5rem; margin-bottom: 0.6rem; }
+.llamada-ondas::before, .llamada-ondas::after { content: ""; position: absolute; inset: 0; border-radius: 999px; border: 3px solid rgb(255 255 255 / 0.35); }
+.llamada-avatar { display: grid; place-items: center; width: 5.25rem; height: 5.25rem; border-radius: 999px; background: var(--urg); color: #fff; font-size: 2rem; font-weight: 800; box-shadow: 0 0 0 6px rgb(255 255 255 / 0.15); }
+.llamada-avatar svg { width: 2.25rem; height: 2.25rem; }
+.llamada-en_curso .llamada-avatar { background: #1f8a4c; }
+.llamada-terminada .llamada-avatar, .llamada-cancelada .llamada-avatar { background: #5d6b72; }
+@media (prefers-reduced-motion: no-preference) {
+  .llamada-sonando .llamada-ondas::before { animation: llamada-onda 1.6s ease-out infinite; }
+  .llamada-sonando .llamada-ondas::after { animation: llamada-onda 1.6s ease-out 0.8s infinite; }
+  @keyframes llamada-onda { from { transform: scale(0.7); opacity: 1; } to { transform: scale(1.35); opacity: 0; } }
+}
+.llamada-quien { font-size: 1.5rem; font-weight: 800; }
+.llamada-estado { font-size: 1.0625rem; font-weight: 700; font-variant-numeric: tabular-nums; color: #d5e3e8; }
+.llamada-detalle { font-size: 0.8125rem; color: #b4c6cd; }
+.llamada-aviso { margin: 0 1.5rem; padding: 0.6rem 0.8rem; border-radius: 0.7rem; background: rgb(255 255 255 / 0.1); font-size: 0.875rem; text-align: center; }
+.llamada-controles { display: flex; justify-content: center; gap: 1.25rem; padding: 0.5rem 1.5rem 0; }
+.llamada-boton { display: grid; justify-items: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 700; color: #fff; }
+.llamada-boton svg { box-sizing: content-box; width: 1.5rem; height: 1.5rem; padding: 1rem; border-radius: 999px; background: rgb(255 255 255 / 0.15); }
+.llamada-boton[aria-pressed="true"] svg { background: #fff; color: #102f3a; }
+.llamada-boton:focus-visible { outline: 3px solid #fff; outline-offset: 4px; border-radius: 0.75rem; }
+.llamada-colgar svg { background: #d93025; transform: rotate(135deg); }
+.llamada-colgar:hover svg { background: #b3261e; }
+.llamada-pie { margin: 0 1.5rem; font-size: 0.75rem; color: #b4c6cd; text-align: center; }
+
+.llamada-barra { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem; padding: 0.5rem 0.75rem; border-radius: 0.7rem; font-size: 0.9375rem; font-weight: 800; }
+.llamada-barra-sonando { background: var(--urg); color: #fff; }
+.llamada-barra-en_curso { background: #1f8a4c; color: #fff; }
+.llamada-barra-terminada { background: var(--color-surface); color: var(--color-ink); }
+.boton-contestar { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 3rem; border-radius: 0.75rem; padding: 0 1.25rem; background: #1f8a4c; color: #fff; font-size: 1rem; font-weight: 800; box-shadow: 0 0 0 3px #fff, 0 0 0 5px #1f8a4c; }
+.boton-contestar:hover { background: #17703d; }
+.boton-colgar { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; border-radius: 0.75rem; padding: 0 1rem; background: #d93025; color: #fff; font-weight: 800; }
+.boton-colgar svg { transform: rotate(135deg); }
+.boton-colgar:hover { background: #b3261e; }
