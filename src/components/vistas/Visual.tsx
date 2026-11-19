@@ -8,7 +8,7 @@ import { useState, type ReactNode } from "react"
 import type { AreaId, CategoriaId } from "../../lib/servicio"
 import { Icon, type IconName } from "../Icon"
 
-export type Perfil = "usuario" | "jefe" | "guardia" | "personal" | "mesa" | "mant"
+export type Perfil = "usuario" | "jefe" | "guardia" | "personal" | "mesa" | "mant" | "limpieza" | "sistemas"
 
 export const ICONO_AREA: Record<AreaId, IconName> = {
   estacion: "train",

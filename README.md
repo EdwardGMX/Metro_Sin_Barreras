@@ -69,6 +69,7 @@ Reglas de los tickets y las tareas (propuesta del equipo, por validar con el STC
 - **RN13.** El jefe de estación asigna tareas solo a su personal (seguridad, estación y limpieza); a Mantenimiento u otras áreas les levanta un ticket.
 - **RN14.** La persona que reportó confirma si se resolvió; si dice que sigue, el ticket se reabre y vuelve a quien lo atendía. El personal nunca ve su nombre ni su seudónimo, solo cuántas personas reportaron.
 - **RN15 (propuesta).** Urgencias graves: botón «Urgencia» para todos los roles menos la Mesa de atención. Se elige qué pasó (persona en las vías, homicidio, agresión, robo, emergencia médica, incendio u objeto sospechoso) y dónde. Solo el personal de esa estación la ve completa, con sirena, marco y borde rojo y amarillo y un pictograma; la Mesa solo ve dónde sucedió. Cada persona marca «Enterado» para silenciar su alarma y la jefatura o seguridad la cierra como atendida. No sustituye al 911. Reglas en `src/lib/urgencias.ts`, pruebas en `src/lib/urgencias.test.ts`.
+- **RN16 (propuesta).** Tablero de desempeño del personal, un módulo por perfil: el personal de estación y de seguridad solo ve el suyo («Mi desempeño»); la jefatura, a todo el personal de su estación; Mantenimiento, a su equipo técnico; y la Mesa de atención, a todo el personal de la red, con filtro por estación. Muestra índice de desempeño, asistencia y puntualidad, actividad diaria por tipo, cumplimiento de metas, calendario de asistencia, la jornada de hoy, reconocimientos, capacitación y actividad reciente, con filtros de periodo, puesto, búsqueda y orden, y vista en tabla de cada gráfica. Solo datos laborales; abrir el tablero de otra persona queda en la bitácora. Hoy, la actividad reciente y las rondas de 14 días son datos del prototipo; el resto del historial, la asistencia y la capacitación son datos de muestra. Reglas en `src/lib/desempeno.ts`, pruebas en `src/lib/desempeno.test.ts`.
 
 Para recorrerlas: en la app pública, «Mi cuenta» con la cuenta de prueba de Ana Lucía (con historial y Tarjeta Incluyente); en la consola, Arturo Lemus (jefe de Tacubaya), Karla Jiménez (policía auxiliar), Jorge Aranda (personal de estación), Patricia Olvera (Mesa de atención) y Alejandra Torres (Mantenimiento). El personal de demostración está en el turno en curso (matutino de 6:00 a 14:00 o vespertino de 14:00 a 22:00).
 
@@ -122,6 +123,7 @@ src/
   lib/operacion.test.ts   Pruebas de la operación en las estaciones
   lib/servicio.ts         Reportes de servicio, tickets entre áreas, tareas del jefe y jornada (RN11 a RN14)
   lib/urgencias.ts        Urgencias graves: quién las activa, quién las ve y para quién suena (RN15)
+  lib/desempeno.ts        Tablero de desempeño: quién ve a quién, historial, índice e insignias (RN16)
   lib/servicio.test.ts    Pruebas de tickets, tareas y confirmación de la persona usuaria
   lib/jornada.ts          Actividades de cada persona en el turno, quién está dónde y carriles del Gantt
   lib/jornada.test.ts     Pruebas de la jornada

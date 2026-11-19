@@ -132,11 +132,13 @@ export const ROLES_INCOMPATIBLES: Array<[RolId, RolId, string]> = [
   ["mantenimiento", "jefe_estacion", "quien repara un equipo no confirma en sitio su propia reparación"],
 ]
 
-export type ModuloId = "inicio" | "estacion" | "rondas" | "mantenimiento" | "seguridad" | "moderacion" | "tickets"
+export type ModuloId = "inicio" | "tablero" | "estacion" | "rondas" | "mantenimiento" | "seguridad" | "moderacion" | "tickets"
 
 /** Un módulo se muestra si la cuenta tiene al menos uno de los permisos que requiere. */
 export const MODULOS: Array<{ id: ModuloId; nombre: string; requiere?: Permiso | Permiso[] }> = [
   { id: "inicio", nombre: "Inicio" },
+  // Tablero de desempeño (RN16): todas las cuentas; el alcance lo decide el rol (desempeno.ts).
+  { id: "tablero", nombre: "Mi desempeño" },
   { id: "estacion", nombre: "Mi estación", requiere: "estacion.ver" },
   { id: "rondas", nombre: "Rondas de revisión", requiere: ["rondas.registrar", "rondas.programar"] },
   { id: "mantenimiento", nombre: "Mantenimiento", requiere: "ordenes.atender" },

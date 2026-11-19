@@ -31,6 +31,8 @@ import { MiJornada } from "../vistas/MiJornada"
 import { MesaAtencion, ModuloTickets } from "../vistas/Tickets"
 import { VistaJefe } from "../vistas/VistaJefe"
 import { BotonUrgencia, PanelUrgencias } from "../urgencias/Urgencias"
+import { ModuloTablero } from "../desempeno/Tablero"
+import { alcanceTablero, NOMBRE_MODULO } from "../../lib/desempeno"
 
 export const CLAVE_CONSOLA = "msb.consola.v4"
 const CLAVE_SESION_PERSONAL = "msb.consola.sesion"
@@ -204,7 +206,7 @@ export default function AdminApp() {
     // Su vista propia ocupa «inicio».
     return base
       .filter((m) => !(home.vista === "tickets" && m.id === "tickets"))
-      .map((m) => (m.id === "inicio" ? { ...m, nombre: home.nombre } : m))
+      .map((m) => (m.id === "inicio" ? { ...m, nombre: home.nombre } : m.id === "tablero" ? { ...m, nombre: NOMBRE_MODULO[alcanceTablero(cuenta)] } : m))
   }, [cuenta, ahora])
   const ir = (m: ModuloId) => {
     setModulo(m)
@@ -343,6 +345,7 @@ export default function AdminApp() {
           {actual === "inicio" && inicio?.vista === "tickets" && <ModuloTickets ctx={ctx} />}
           {actual === "inicio" && !inicio && <ModuloTickets ctx={ctx} />}
           {actual === "tickets" && <ModuloTickets ctx={ctx} />}
+          {actual === "tablero" && <ModuloTablero ctx={ctx} />}
           {actual === "estacion" && <MiEstacion ctx={ctx} />}
           {actual === "rondas" && <Rondas ctx={ctx} />}
           {actual === "mantenimiento" && <Mantenimiento ctx={ctx} />}
