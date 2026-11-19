@@ -553,3 +553,40 @@ dialog::backdrop { background: rgba(16, 47, 58, 0.55); }
   @keyframes llegada { from { transform: translate(-50%, -80%); opacity: 0; } to { transform: translate(-50%, -50%); opacity: 1; } }
 }
 }
+
+
+/* Urgencias graves (RN15) ------------------------------------------------ */
+:root { --urg: #b3261e; --urg-tinta: #8c1d18; --urg-suave: #fde4e4; --urg-amarillo: #ffcc00; }
+.boton-urgencia { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 0.75rem; background: var(--urg); padding: 0 1rem; font-size: 0.9rem; font-weight: 800; color: #fff; box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--urg); }
+.boton-urgencia:hover { background: var(--urg-tinta); }
+.boton-urgencia:disabled { cursor: not-allowed; opacity: 0.5; }
+.boton-urgencia:focus-visible { outline: 3px solid var(--color-ink); outline-offset: 4px; }
+.boton-borde-urgencia { border-color: var(--urg-tinta); color: var(--urg-tinta); }
+.boton-borde-urgencia:hover { background: var(--urg-suave); }
+.callout-urgencia { border-color: var(--urg); background: var(--urg-suave); color: var(--urg-tinta); }
+.opcion-urgencia { --rol: var(--urg); --rol-suave: var(--urg-suave); --rol-tinta: var(--urg-tinta); }
+.pictograma { flex-shrink: 0; }
+
+.urgencia-tarjeta { display: flex; gap: 1rem; align-items: flex-start; border-radius: 1rem; padding: 1rem 1.1rem; background: var(--urg-suave); color: var(--color-ink); border: 6px solid var(--urg); }
+.urgencia-cerrada { background: var(--color-surface); border: 3px solid var(--color-border); opacity: 0.85; }
+.urgencia-cerrada .pictograma rect:first-child { fill: #6b7780; }
+.urgencia-etiqueta { display: inline-block; border-radius: 999px; background: var(--urg); color: #fff; padding: 0.1rem 0.6rem; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+.urgencia-cerrada .urgencia-etiqueta { background: #6b7780; }
+.urgencia-mesa { border-radius: 1rem; border: 3px solid var(--urg); background: #fff; padding: 0.9rem 1rem; color: var(--urg-tinta); }
+@media (max-width: 520px) { .urgencia-tarjeta { flex-direction: column; } }
+
+/* Marco alrededor de toda la pantalla mientras suena. */
+.urgencia-en-curso body::after { content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none; border: 10px solid var(--urg); }
+
+/* Parpadeo rojo y amarillo (1 ciclo por segundo, por debajo del umbral de destellos de WCAG 2.3.1). */
+@media (prefers-reduced-motion: no-preference) {
+  .urgencia-suena { animation: urgencia-borde 1s steps(1, end) infinite; }
+  .urgencia-suena .pictograma { animation: urgencia-latido 1s ease-in-out infinite; }
+  .urgencia-en-curso body::after { animation: urgencia-marco 1s steps(1, end) infinite; }
+  @keyframes urgencia-borde { 0% { border-color: var(--urg); box-shadow: 0 0 0 6px var(--urg-amarillo); } 50% { border-color: var(--urg-amarillo); box-shadow: 0 0 0 6px var(--urg); } }
+  @keyframes urgencia-marco { 0% { border-color: var(--urg); } 50% { border-color: var(--urg-amarillo); } }
+  @keyframes urgencia-latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .urgencia-suena { box-shadow: 0 0 0 6px var(--urg-amarillo); }
+}

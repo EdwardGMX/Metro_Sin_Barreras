@@ -64,10 +64,11 @@ En la jornada, cada actividad (tarea del jefe, ticket, apoyo a una persona usuar
 
 Reglas de los tickets y las tareas (propuesta del equipo, por validar con el STC; en `src/lib/servicio.ts` y sus pruebas en `src/lib/servicio.test.ts`):
 
-- **RN11.** Cualquier cuenta del personal levanta un ticket a cualquier área, solo en las estaciones a su cargo. Las personas usuarias no levantan tickets: reportan con opciones predefinidas, la Mesa agrupa los reportes iguales (3 personas o más suben la prioridad) y los turna al área. Un reporte igual a un ticket abierto se suma a él.
+- **RN11.** Cualquier cuenta del personal levanta un ticket con solo nombre, descripción y urgencia, en las estaciones a su cargo; llega a la Mesa de atención, que lo turna al área. Las personas usuarias no levantan tickets: reportan con opciones predefinidas, la Mesa agrupa los reportes iguales (3 personas o más suben la prioridad) y los turna al área. Un reporte igual a un ticket abierto se suma a él.
 - **RN12.** Asigna la Mesa de atención o quien encarga el área (la jefatura de estación para estación, limpieza y la policía auxiliar de su estación; Mantenimiento para instalaciones; la Mesa para Sistemas), y solo a personal de esa área. Quien resolvió un ticket no lo cierra (RN9). Plazos: alta 4 h, media 24 h, baja 72 h.
 - **RN13.** El jefe de estación asigna tareas solo a su personal (seguridad, estación y limpieza); a Mantenimiento u otras áreas les levanta un ticket.
 - **RN14.** La persona que reportó confirma si se resolvió; si dice que sigue, el ticket se reabre y vuelve a quien lo atendía. El personal nunca ve su nombre ni su seudónimo, solo cuántas personas reportaron.
+- **RN15 (propuesta).** Urgencias graves: botón «Urgencia» para todos los roles menos la Mesa de atención. Se elige qué pasó (persona en las vías, homicidio, agresión, robo, emergencia médica, incendio u objeto sospechoso) y dónde. Solo el personal de esa estación la ve completa, con sirena, marco y borde rojo y amarillo y un pictograma; la Mesa solo ve dónde sucedió. Cada persona marca «Enterado» para silenciar su alarma y la jefatura o seguridad la cierra como atendida. No sustituye al 911. Reglas en `src/lib/urgencias.ts`, pruebas en `src/lib/urgencias.test.ts`.
 
 Para recorrerlas: en la app pública, «Mi cuenta» con la cuenta de prueba de Ana Lucía (con historial y Tarjeta Incluyente); en la consola, Arturo Lemus (jefe de Tacubaya), Karla Jiménez (policía auxiliar), Jorge Aranda (personal de estación), Patricia Olvera (Mesa de atención) y Alejandra Torres (Mantenimiento). El personal de demostración está en el turno en curso (matutino de 6:00 a 14:00 o vespertino de 14:00 a 22:00).
 
@@ -120,6 +121,7 @@ src/
   lib/operacion.ts        Rondas, verificación en sitio, órdenes de mantenimiento, incidentes y apoyos (RN10)
   lib/operacion.test.ts   Pruebas de la operación en las estaciones
   lib/servicio.ts         Reportes de servicio, tickets entre áreas, tareas del jefe y jornada (RN11 a RN14)
+  lib/urgencias.ts        Urgencias graves: quién las activa, quién las ve y para quién suena (RN15)
   lib/servicio.test.ts    Pruebas de tickets, tareas y confirmación de la persona usuaria
   lib/jornada.ts          Actividades de cada persona en el turno, quién está dónde y carriles del Gantt
   lib/jornada.test.ts     Pruebas de la jornada

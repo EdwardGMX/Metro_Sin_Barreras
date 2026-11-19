@@ -204,6 +204,8 @@ export type Ticket = {
   cerrado?: number
   cerradoPor?: string
   reabierto?: number
+  /** Ticket del personal que la Mesa aún no turna a un área. */
+  porTurnar?: boolean
   historial: EventoTicket[]
   demo?: boolean
 }
@@ -511,21 +513,32 @@ export function turnarReportes(db: BaseDatos, e: EstadoConsola, quien: Cuenta, r
 /* Tickets entre áreas                                                 */
 /* ------------------------------------------------------------------ */
 
-export type DatosTicket = { area: AreaId; station: string; asunto: string; detalle: string; prioridad: Prioridad; lugar?: string }
+/**
+ * Un ticket del personal lleva solo nombre, descripción y urgencia. Sin área, llega a la
+ * Mesa de atención, que lo turna al área responsable (turnarTicket).
+ */
+export type DatosTicket = { station: string; asunto: string; detalle: string; prioridad: Prioridad; area?: AreaId; lugar?: string }
+
+export const MAX_NOMBRE_TICKET = 80
+export const MAX_DESCRIPCION_TICKET = 300
 
 export function validarTicket(d: DatosTicket): string | null {
-  if (!AREAS[d.area]) return "Elige el área que debe atenderlo."
+  if (d.area && !AREAS[d.area]) return "Esa área no existe."
   if (!allStations.includes(d.station)) return "Elige una estación de la lista."
-  if (!d.asunto.trim()) return "Escribe o elige el asunto."
-  if (d.asunto.trim().length > 80) return "El asunto debe tener 80 caracteres o menos."
-  if (d.detalle.trim().length > 200) return "Las indicaciones deben tener 200 caracteres o menos."
+  if (!d.asunto.trim()) return "Escribe el nombre del ticket."
+  if (d.asunto.trim().length > MAX_NOMBRE_TICKET) return `El nombre debe tener ${MAX_NOMBRE_TICKET} caracteres o menos.`
+  if (!d.detalle.trim()) return "Escribe la descripción: qué pasa y dónde."
+  if (d.detalle.trim().length > MAX_DESCRIPCION_TICKET) return `La descripción debe tener ${MAX_DESCRIPCION_TICKET} caracteres o menos.`
+  if (!["alta", "media", "baja"].includes(d.prioridad)) return "Elige la urgencia."
   if (d.lugar && !LUGARES.includes(d.lugar)) return "Elige un lugar de la lista."
   return null
 }
 
-/** Cualquier cuenta del personal levanta un ticket a cualquier área, en las estaciones que alcanza (RN11, RN8). */
+/** Cualquier cuenta del personal levanta un ticket, en las estaciones que alcanza (RN11, RN8). */
 export function levantarTicket(db: BaseDatos, e: EstadoConsola, quien: Cuenta, d: DatosTicket, now: number): Resultado {
-  const negado = exigir(e, quien, "tickets.levantar", `${d.area} · ${d.station}`, now)
+  const area: AreaId = d.area ?? "atencion"
+  const porTurnarEnMesa = !d.area
+  const negado = exigir(e, quien, "tickets.levantar", `${area} · ${d.station}`, now)
   if (negado) return negado
   if (!alcanzaEstacion(quien, d.station)) return negar(e, quien, "levantar ticket", d.station, "Solo levantas tickets de las estaciones a tu cargo.", now)
   const error = validarTicket(d)
@@ -535,10 +548,10 @@ export function levantarTicket(db: BaseDatos, e: EstadoConsola, quien: Cuenta, d
   sv.tickets.unshift({
     id,
     clase: "ticket",
-    area: d.area,
+    area,
     station: d.station,
     asunto: d.asunto.trim(),
-    detalle: d.detalle.trim() || undefined,
+    detalle: d.detalle.trim(),
     lugar: d.lugar,
     prioridad: d.prioridad,
     estado: "nuevo",
@@ -547,10 +560,34 @@ export function levantarTicket(db: BaseDatos, e: EstadoConsola, quien: Cuenta, d
     creado: now,
     creadoPor: quien.nombre,
     creadoPorCuenta: quien.id,
-    historial: [{ ts: now, texto: `Ticket levantado para ${AREAS[d.area].nombre}`, por: quien.nombre }],
+    porTurnar: porTurnarEnMesa || undefined,
+    historial: [{ ts: now, texto: porTurnarEnMesa ? "Ticket levantado; la Mesa de atención lo turnará al área" : `Ticket levantado para ${AREAS[area].nombre}`, por: quien.nombre }],
   })
-  auditar(e, { ...actor(quien), accion: "levantar ticket", objeto: `${id} · ${d.station}`, resultado: "permitido", detalle: AREAS[d.area].nombre }, now)
-  return { ok: true, mensaje: `Levantaste el ticket ${id} para ${AREAS[d.area].nombre}.` }
+  auditar(e, { ...actor(quien), accion: "levantar ticket", objeto: `${id} · ${d.station}`, resultado: "permitido", detalle: porTurnarEnMesa ? "a la Mesa de atención" : AREAS[area].nombre }, now)
+  return { ok: true, mensaje: porTurnarEnMesa ? `Levantaste el ticket ${id}. La Mesa de atención lo turnará al área que corresponde.` : `Levantaste el ticket ${id} para ${AREAS[area].nombre}.` }
+}
+
+/** La Mesa turna (o vuelve a turnar) un ticket a otra área. Si cambia de área, se libera la asignación. */
+export function turnarTicket(db: BaseDatos, e: EstadoConsola, quien: Cuenta, id: string, area: AreaId, now: number): Resultado {
+  const negado = exigir(e, quien, "tickets.gestionar", id, now)
+  if (negado) return negado
+  const t = servicioDe(db).tickets.find((x) => x.id === id)
+  if (!t || t.clase !== "ticket") return { ok: false, codigo: 400, mensaje: "No encontramos ese ticket." }
+  if (!abierto(t)) return { ok: false, codigo: 409, mensaje: "Solo se turna un ticket abierto." }
+  if (!AREAS[area]) return { ok: false, codigo: 400, mensaje: "Elige un área." }
+  if (t.area === area && !t.porTurnar) return { ok: true, mensaje: `${id} ya está en ${AREAS[area].nombre}.` }
+  if (t.area !== area) {
+    t.asignadoA = undefined
+    t.asignadoNombre = undefined
+    t.asignado = undefined
+    t.iniciado = undefined
+    t.estado = "nuevo"
+  }
+  t.area = area
+  t.porTurnar = undefined
+  t.historial.push({ ts: now, texto: `Turnado a ${AREAS[area].nombre}`, por: quien.nombre })
+  auditar(e, { ...actor(quien), accion: "turnar ticket", objeto: id, resultado: "permitido", detalle: AREAS[area].nombre }, now)
+  return { ok: true, mensaje: `${id} quedó turnado a ${AREAS[area].nombre}.` }
 }
 
 const buscar = (db: BaseDatos, id: string) => servicioDe(db).tickets.find((t) => t.id === id)

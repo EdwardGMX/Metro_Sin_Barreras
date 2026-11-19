@@ -20,6 +20,7 @@ import {
   fueraDePlazo,
   idPersonal,
   levantarTicket,
+  turnarTicket,
   plazoUsado,
   porTurnar,
   reabrirTicket,
@@ -27,7 +28,8 @@ import {
   turnarReportes,
   vencimiento,
   AREAS,
-  LUGARES,
+  MAX_DESCRIPCION_TICKET,
+  MAX_NOMBRE_TICKET,
   ORDEN_AREAS,
   PRIORIDAD_LABEL,
   type AreaId,
@@ -70,7 +72,7 @@ export function TicketCard({ t, now, onAbrir, mostrarEstacion = true }: { t: Tic
       <span className="mt-1.5 block font-extrabold leading-snug">{t.asunto}</span>
       <span className="mt-0.5 block text-xs text-ink-muted">
         {mostrarEstacion && <span className="font-bold text-ink">{t.station} · </span>}
-        {AREAS[t.area].nombre}
+        {t.porTurnar ? "Por turnar en la Mesa" : AREAS[t.area].nombre}
         {t.lugar && ` · ${t.lugar}`}
         {t.origen === "persona_usuaria" && ` · ${personas} ${personas === 1 ? "persona usuaria" : "personas usuarias"}`}
       </span>
@@ -138,6 +140,7 @@ export function DetalleTicket({ ctx, id, onClose, perfil }: { ctx: Ctx; id: stri
   const t = id ? servicioDe(db).tickets.find((x) => x.id === id) : undefined
   const [quien, setQuien] = useState("")
   const [nota, setNota] = useState("")
+  const [areaTurnar, setAreaTurnar] = useState<AreaId | "">("")
   if (!t) return <Dialog open={false} onClose={onClose} title="Ticket">{null}</Dialog>
   const tarea = t.clase === "tarea"
   const encarga = tarea ? puede(cuenta, "tareas.asignar", ahora) && (cuenta.estaciones ?? []).includes(t.station) : encargaArea(cuenta, t.area, t.station, ahora)
@@ -156,8 +159,8 @@ export function DetalleTicket({ ctx, id, onClose, perfil }: { ctx: Ctx; id: stri
       <div className={`rol-${perfil} space-y-5`}>
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="chip">
-              <Icon name={ICONO_AREA[t.area]} className="size-3.5" /> {AREAS[t.area].nombre}
+            <span className={`chip ${t.porTurnar ? "chip-estado-warn" : ""}`}>
+              <Icon name={t.porTurnar ? "inbox" : ICONO_AREA[t.area]} className="size-3.5" /> {t.porTurnar ? "Por turnar en la Mesa" : AREAS[t.area].nombre}
             </span>
             <span className="chip">
               <Icon name="location" className="size-3.5" /> {t.station}
@@ -179,7 +182,28 @@ export function DetalleTicket({ ctx, id, onClose, perfil }: { ctx: Ctx; id: stri
           </div>
         )}
 
-        {t.estado !== "cerrado" && (encarga || propio) && (
+        {!tarea && abierto(t) && puede(cuenta, "tickets.gestionar", ahora) && (
+          <div className={`tarjeta-suave ${t.porTurnar ? "border-2 border-[var(--rol)]" : ""}`}>
+            <label htmlFor="turnar-a" className="field-label">
+              {t.porTurnar ? "¿Qué área debe atenderlo?" : "Turnar a otra área"}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <select id="turnar-a" className="field-select max-w-sm flex-1" value={areaTurnar} onChange={(e) => setAreaTurnar(e.target.value as AreaId | "")}>
+                <option value="">Elige un área</option>
+                {ORDEN_AREAS.filter((a) => t.porTurnar || a !== t.area).map((a) => (
+                  <option key={a} value={a}>
+                    {AREAS[a].nombre}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="boton-rol" disabled={!areaTurnar} onClick={() => areaTurnar && accion((d, e, now) => turnarTicket(d, e, cuenta, t.id, areaTurnar, now))}>
+                <Icon name="send" size="sm" /> Turnar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {t.estado !== "cerrado" && (encarga || propio) && !t.porTurnar && (
           <div className="tarjeta-suave space-y-4">
             {encarga && abierto(t) && (
               <div>
@@ -274,161 +298,81 @@ export function estacionesDeCuenta(c: Cuenta): string[] {
   return [...piloto, ...visibles.filter((s) => !piloto.includes(s))]
 }
 
-export function LevantarTicket({ ctx, open, onClose, perfil, area: areaInicial }: { ctx: Ctx; open: boolean; onClose: () => void; perfil: Perfil; area?: AreaId }) {
+export function LevantarTicket({ ctx, open, onClose, perfil }: { ctx: Ctx; open: boolean; onClose: () => void; perfil: Perfil }) {
   const { cuenta, operar } = ctx
   const estaciones = estacionesDeCuenta(cuenta)
-  const [area, setArea] = useState<AreaId | null>(areaInicial ?? null)
-  const [asunto, setAsunto] = useState("")
-  const [otro, setOtro] = useState(false)
-  const [station, setStation] = useState(estaciones[0] ?? "Tacubaya")
-  const [lugar, setLugar] = useState("")
+  const [nombre, setNombre] = useState("")
+  const [descripcion, setDescripcion] = useState("")
   const [prioridad, setPrioridad] = useState<TPrioridad>("media")
-  const [detalle, setDetalle] = useState("")
+  const [station, setStation] = useState(estaciones[0] ?? "Tacubaya")
   const [error, setError] = useState<string | null>(null)
 
   const reiniciar = () => {
-    setArea(areaInicial ?? null)
-    setAsunto("")
-    setOtro(false)
-    setLugar("")
+    setNombre("")
+    setDescripcion("")
     setPrioridad("media")
-    setDetalle("")
     setError(null)
+  }
+  const cerrar = () => {
+    reiniciar()
+    onClose()
   }
   const enviar = (e: FormEvent) => {
     e.preventDefault()
-    if (!area) return setError("Elige el área que debe atenderlo.")
-    const r = operar((d, est, now) => levantarTicket(d, est, cuenta, { area, station, asunto, detalle, prioridad, lugar: lugar || undefined }, now))
-    if (r.ok) {
-      reiniciar()
-      onClose()
-    } else setError(r.mensaje)
+    const r = operar((d, est, now) => levantarTicket(d, est, cuenta, { station, asunto: nombre, detalle: descripcion, prioridad }, now))
+    if (r.ok) cerrar()
+    else setError(r.mensaje)
   }
 
   return (
-    <Dialog
-      open={open}
-      onClose={() => {
-        reiniciar()
-        onClose()
-      }}
-      title="Levantar un ticket"
-      wide
-    >
+    <Dialog open={open} onClose={cerrar} title="Levantar un ticket" wide>
       <form className={`rol-${perfil} space-y-5`} onSubmit={enviar} noValidate>
+        <div>
+          <label htmlFor="ticket-nombre" className="field-label">
+            Nombre del ticket
+          </label>
+          <input id="ticket-nombre" className="field-select" maxLength={MAX_NOMBRE_TICKET} value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="off" aria-describedby="ticket-nombre-ayuda" />
+          <p id="ticket-nombre-ayuda" className="mt-1 text-xs text-ink-muted">
+            Un título corto. {nombre.length}/{MAX_NOMBRE_TICKET}
+          </p>
+        </div>
+
+        <div>
+          <label htmlFor="ticket-descripcion" className="field-label">
+            Descripción
+          </label>
+          <textarea id="ticket-descripcion" className="report-textarea min-h-28 w-full" maxLength={MAX_DESCRIPCION_TICKET} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} aria-describedby="ticket-descripcion-ayuda" />
+          <p id="ticket-descripcion-ayuda" className="mt-1 text-xs text-ink-muted">
+            Qué pasa y en qué parte de la estación. No escribas nombres ni datos de personas usuarias. {descripcion.length}/{MAX_DESCRIPCION_TICKET}
+          </p>
+        </div>
+
         <fieldset>
-          <legend className="field-legend px-0">¿Qué área debe atenderlo?</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {ORDEN_AREAS.map((a) => (
-              <button
-                key={a}
-                type="button"
-                className="opcion-grande"
-                aria-pressed={area === a}
-                onClick={() => {
-                  setArea(a)
-                  setAsunto("")
-                  setOtro(false)
-                }}
-              >
-                <span className="opcion-icono">
-                  <Icon name={ICONO_AREA[a]} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block font-extrabold">{AREAS[a].nombre}</span>
-                  <span className="block text-xs text-ink-muted">{AREAS[a].unidad.split(" (")[0]}</span>
-                </span>
+          <legend className="field-label">Urgencia</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {(["alta", "media", "baja"] as TPrioridad[]).map((p) => (
+              <button key={p} type="button" className="opcion-grande justify-center py-2 text-sm font-bold" aria-pressed={prioridad === p} onClick={() => setPrioridad(p)}>
+                <Prioridad p={p} />
               </button>
             ))}
           </div>
+          <p className="mt-1 text-xs text-ink-muted">Plazos: alta 4 h, media 24 h, baja 72 h.</p>
         </fieldset>
 
-        {area && (
-          <>
-            <fieldset>
-              <legend className="field-legend px-0">¿Qué se necesita?</legend>
-              <div className="flex flex-wrap gap-2">
-                {AREAS[area].asuntos.map((x) => (
-                  <button
-                    key={x}
-                    type="button"
-                    className="opcion-grande w-auto min-h-11 px-3 py-1.5 text-sm font-bold"
-                    aria-pressed={!otro && asunto === x}
-                    onClick={() => {
-                      setOtro(false)
-                      setAsunto(x)
-                    }}
-                  >
-                    {x}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="opcion-grande w-auto min-h-11 px-3 py-1.5 text-sm font-bold"
-                  aria-pressed={otro}
-                  onClick={() => {
-                    setOtro(true)
-                    setAsunto("")
-                  }}
-                >
-                  Otro
-                </button>
-              </div>
-              {otro && (
-                <>
-                  <label htmlFor="ticket-otro" className="field-label mt-3">
-                    Escribe el asunto (80 caracteres)
-                  </label>
-                  <input id="ticket-otro" className="field-select" maxLength={80} value={asunto} onChange={(e) => setAsunto(e.target.value)} />
-                </>
-              )}
-            </fieldset>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="ticket-estacion" className="field-label">
-                  Estación
-                </label>
-                <select id="ticket-estacion" className="field-select" value={station} onChange={(e) => setStation(e.target.value)} disabled={estaciones.length === 1}>
-                  {estaciones.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="ticket-lugar" className="field-label">
-                  Lugar (opcional)
-                </label>
-                <select id="ticket-lugar" className="field-select" value={lugar} onChange={(e) => setLugar(e.target.value)}>
-                  <option value="">Sin especificar</option>
-                  {LUGARES.map((l) => (
-                    <option key={l}>{l}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <fieldset>
-              <legend className="field-label">Prioridad</legend>
-              <div className="grid grid-cols-3 gap-2">
-                {(["alta", "media", "baja"] as TPrioridad[]).map((p) => (
-                  <button key={p} type="button" className="opcion-grande justify-center py-2 text-sm font-bold" aria-pressed={prioridad === p} onClick={() => setPrioridad(p)}>
-                    <Prioridad p={p} />
-                  </button>
-                ))}
-              </div>
-              <p className="mt-1 text-xs text-ink-muted">Plazos: alta 4 h, media 24 h, baja 72 h.</p>
-            </fieldset>
-
-            <div>
-              <label htmlFor="ticket-detalle" className="field-label">
-                Indicaciones (opcional, 200 caracteres)
-              </label>
-              <textarea id="ticket-detalle" className="report-textarea min-h-20 w-full" maxLength={200} value={detalle} onChange={(e) => setDetalle(e.target.value)} />
-              <p className="mt-1 text-xs text-ink-muted">No escribas nombres ni datos de personas usuarias.</p>
-            </div>
-          </>
+        {estaciones.length > 1 && (
+          <div>
+            <label htmlFor="ticket-estacion" className="field-label">
+              Estación
+            </label>
+            <select id="ticket-estacion" className="field-select" value={station} onChange={(e) => setStation(e.target.value)}>
+              {estaciones.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </div>
         )}
+
+        <p className="text-sm text-ink-muted">La Mesa de atención lo recibe y lo turna al área que debe atenderlo.</p>
 
         {error && (
           <p className="callout callout-warning mt-0" role="alert">
@@ -437,7 +381,7 @@ export function LevantarTicket({ ctx, open, onClose, perfil, area: areaInicial }
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          <button type="submit" className="boton-rol min-h-12 flex-1" disabled={!area || !asunto.trim()}>
+          <button type="submit" className="boton-rol min-h-12 flex-1" disabled={!nombre.trim() || !descripcion.trim()}>
             <Icon name="send" size="sm" /> Levantar ticket
           </button>
         </div>
@@ -542,15 +486,19 @@ export function MesaAtencion({ ctx }: { ctx: Ctx }) {
   const maxArea = Math.max(1, ...porArea.map((x) => x.n))
   const visibles = tickets.filter((t) => t.estado !== "cerrado" && (filtroArea === "todas" || t.area === filtroArea) && (filtroEst === "todas" || t.station === filtroEst))
   const estaciones = [...new Set(tickets.filter((t) => t.estado !== "cerrado").map((t) => t.station))].sort()
-  const pendientes = grupos.length + vencidos
+  const ticketsPorTurnar = tickets.filter((t) => t.porTurnar && abierto(t)).length
+  const pendientes = grupos.length + vencidos + ticketsPorTurnar
   const resumen =
     pendientes === 0
       ? "Todo turnado y en plazo"
-      : [grupos.length ? `${grupos.length} ${grupos.length === 1 ? "reporte nuevo" : "reportes nuevos"} por turnar` : "", vencidos ? `${vencidos} ${vencidos === 1 ? "ticket vencido" : "tickets vencidos"}` : ""].filter(Boolean).join(" · ")
+      : [
+          grupos.length ? `${grupos.length} ${grupos.length === 1 ? "reporte nuevo" : "reportes nuevos"} por turnar` : "",
+          ticketsPorTurnar ? `${ticketsPorTurnar} ${ticketsPorTurnar === 1 ? "ticket del personal" : "tickets del personal"} por turnar` : "",
+          vencidos ? `${vencidos} ${vencidos === 1 ? "ticket vencido" : "tickets vencidos"}` : ""].filter(Boolean).join(" · ")
 
   return (
     <div className="vista rol-mesa">
-      <Letrero perfil="mesa" icono="inbox" quien={`${cuenta.nombre} · Gerencia de Atención al Usuario`} titulo="Mesa de atención" resumen={resumen} tono={vencidos ? "bad" : grupos.length ? "warn" : "ok"}>
+      <Letrero perfil="mesa" icono="inbox" quien={`${cuenta.nombre} · Gerencia de Atención al Usuario`} titulo="Mesa de atención" resumen={resumen} tono={vencidos ? "bad" : grupos.length || ticketsPorTurnar ? "warn" : "ok"}>
         <button type="button" className="boton-rol" onClick={() => setLevantar(true)}>
           <Icon name="plus" size="sm" /> Levantar ticket
         </button>
@@ -680,7 +628,7 @@ export function ModuloTickets({ ctx }: { ctx: Ctx }) {
             Tickets
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-ink-muted">
-            Cualquier persona del personal levanta un ticket a cualquier área. Lo asigna la Mesa de atención o quien encarga el área, y quien lo resuelve no lo cierra.
+            Cualquier persona del personal levanta un ticket con su nombre, descripción y urgencia. La Mesa de atención lo turna al área, lo asigna quien encarga esa área, y quien lo resuelve no lo cierra.
           </p>
         </div>
         <button type="button" className="boton-rol" onClick={() => setLevantar(true)}>

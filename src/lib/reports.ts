@@ -7,6 +7,7 @@ import { equipoPorId, todosLosEquipos, ultimaCaptura } from "../data/accessibili
 import { estadoOperativo, type Operacion } from "./operacion"
 import type { EstadoEquipo } from "./router"
 import type { Servicio } from "./servicio"
+import type { Urgencia } from "./urgencias"
 
 export type EstadoReportado = "no_funciona" | "con_fallas" | "cerrado" | "funciona"
 
@@ -62,6 +63,8 @@ export type BaseDatos = {
   operacion?: Operacion
   /** Reportes de servicio, tickets entre áreas y tareas del personal (RN11 a RN14). */
   servicio?: Servicio
+  /** Urgencias graves activadas por el personal (RN15). */
+  urgencias?: Urgencia[]
 }
 
 export const VERSION_AVISO = "AP-2026-10"

@@ -20,6 +20,7 @@ import {
   sembrarServicio,
   servicioDe,
   turnarReportes,
+  turnarTicket,
   turnoEnCurso,
   SEUDONIMO_DEMO,
 } from "./servicio"
@@ -93,15 +94,30 @@ describe("Tickets entre áreas (RN11, RN12)", () => {
 
   it("cualquier persona del personal levanta tickets, pero solo en sus estaciones", () => {
     const { e, db } = preparar()
-    const datos = { area: "sistemas" as const, station: "Tacubaya", asunto: "La app o la consola no responde", detalle: "", prioridad: "baja" as const }
+    const datos = { area: "sistemas" as const, station: "Tacubaya", asunto: "La app o la consola no responde", detalle: "No abre la ronda de las 9:00.", prioridad: "baja" as const }
     expect(levantarTicket(db, e, c(e, "C-SEG-TAC"), datos, AHORA).ok).toBe(true)
     expect(levantarTicket(db, e, c(e, "C-MANT"), { ...datos, station: "Zapata" }, AHORA).ok).toBe(true)
     expect(levantarTicket(db, e, c(e, "C-SEG-TAC"), { ...datos, station: "Pantitlán" }, AHORA).ok).toBe(false)
   })
 
+  it("un ticket con solo nombre, descripción y urgencia llega a la Mesa, que lo turna al área", () => {
+    const { e, db } = preparar()
+    const sinDescripcion = levantarTicket(db, e, c(e, "C-JE-TAC"), { station: "Tacubaya", asunto: "Fuga en el pasillo", detalle: " ", prioridad: "alta" }, AHORA)
+    expect(sinDescripcion.ok).toBe(false)
+    expect(levantarTicket(db, e, c(e, "C-JE-TAC"), { station: "Tacubaya", asunto: "Fuga en el pasillo", detalle: "Gotea agua del techo frente al elevador de la Línea 7.", prioridad: "alta" }, AHORA).ok).toBe(true)
+    const t = ultimo(db)
+    expect(t.porTurnar).toBe(true)
+    expect(t.estado).toBe("nuevo")
+    expect(turnarTicket(db, e, c(e, "C-JE-TAC"), t.id, "mantenimiento", AHORA).ok).toBe(false) // solo la Mesa turna
+    expect(turnarTicket(db, e, c(e, "C-MESA"), t.id, "mantenimiento", AHORA + MIN).ok).toBe(true)
+    expect(ticket(db, t.id).area).toBe("mantenimiento")
+    expect(ticket(db, t.id).porTurnar).toBeUndefined()
+    expect(asignarTicket(db, e, c(e, "C-MANT"), t.id, "T-DIEGO", AHORA + 2 * MIN).ok).toBe(true)
+  })
+
   it("asigna la Mesa o quien encarga el área, y solo a personal de esa área", () => {
     const { e, db } = preparar()
-    const r = levantarTicket(db, e, c(e, "C-PE-TAC"), { area: "seguridad", station: "Tacubaya", asunto: "Rondín adicional de vigilancia", detalle: "", prioridad: "media" }, AHORA)
+    const r = levantarTicket(db, e, c(e, "C-PE-TAC"), { area: "seguridad", station: "Tacubaya", asunto: "Rondín adicional de vigilancia", detalle: "Hay comercio en el transbordo.", prioridad: "media" }, AHORA)
     expect(r.ok).toBe(true)
     const id = ultimo(db).id
     const karla = persona(db, "Tacubaya", "Policía auxiliar")

@@ -30,6 +30,7 @@ import { Mantenimiento, MiEstacion, Rondas, Seguridad } from "./Operacion"
 import { MiJornada } from "../vistas/MiJornada"
 import { MesaAtencion, ModuloTickets } from "../vistas/Tickets"
 import { VistaJefe } from "../vistas/VistaJefe"
+import { BotonUrgencia, PanelUrgencias } from "../urgencias/Urgencias"
 
 export const CLAVE_CONSOLA = "msb.consola.v4"
 const CLAVE_SESION_PERSONAL = "msb.consola.sesion"
@@ -92,6 +93,30 @@ export default function AdminApp() {
       window.clearInterval(t)
       document.title = "Metro Sin Barreras"
     }
+  }, [])
+
+  // Otra pestaña (otra cuenta del personal) cambió los datos: se reflejan aquí al instante,
+  // por ejemplo una urgencia recién activada. En producción esto llega por la API.
+  useEffect(() => {
+    const alCambiar = (ev: StorageEvent) => {
+      if (ev.key === CLAVE_DB && ev.newValue) {
+        try {
+          setDb(JSON.parse(ev.newValue) as BaseDatos)
+          setAhora(Date.now())
+        } catch {
+          /* valor inválido: se ignora */
+        }
+      }
+      if (ev.key === CLAVE_CONSOLA && ev.newValue) {
+        try {
+          setEstado(JSON.parse(ev.newValue) as EstadoConsola)
+        } catch {
+          /* valor inválido: se ignora */
+        }
+      }
+    }
+    window.addEventListener("storage", alCambiar)
+    return () => window.removeEventListener("storage", alCambiar)
   }, [])
 
   const cuenta = sesion ? estado.cuentas.find((c) => c.id === sesion.cuentaId) : undefined
@@ -268,6 +293,7 @@ export default function AdminApp() {
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <BotonUrgencia ctx={ctx} />
             <div className="text-left text-sm sm:text-right">
               <p className="font-extrabold">{cuenta.nombre}</p>
               <p className="text-xs text-ink-muted">
@@ -310,6 +336,7 @@ export default function AdminApp() {
               </p>
             )}
           </div>
+          <PanelUrgencias ctx={ctx} />
           {actual === "inicio" && inicio?.vista === "jefe" && <VistaJefe ctx={ctx} />}
           {actual === "inicio" && inicio?.vista === "jornada" && <MiJornada ctx={ctx} />}
           {actual === "inicio" && inicio?.vista === "mesa" && <MesaAtencion ctx={ctx} />}
