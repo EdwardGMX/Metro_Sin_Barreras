@@ -117,6 +117,20 @@ describe("Tickets entre áreas (RN11, RN12)", () => {
     expect(asignarTicket(db, e, c(e, "C-MANT"), t.id, "T-DIEGO", AHORA + 2 * MIN).ok).toBe(true)
   })
 
+  it("la Mesa modifica nombre, descripción, urgencia y área antes de turnar; los reportes iguales se siguen sumando", () => {
+    const { e, db } = preparar()
+    const g = porTurnar(db, AHORA).find((x) => x.station === "Hidalgo" && x.problema.id === "avisos")!
+    const ids = g.reportes.map((r) => r.id)
+    expect(turnarReportes(db, e, c(e, "C-MESA"), ids, "estacion", "media", AHORA, { asunto: "Pantalla de avisos apagada en el andén", detalle: "Revisar y colocar aviso impreso." }).ok).toBe(true)
+    const t = ultimo(db)
+    expect(t.asunto).toBe("Pantalla de avisos apagada en el andén")
+    expect(t.detalle).toBe("Revisar y colocar aviso impreso.")
+    expect(t.area).toBe("estacion")
+    expect(t.prioridad).toBe("media")
+    const otro = reportarServicio(db, sesion("p-nuevo"), { station: "Hidalgo", categoria: "senalizacion", problema: "avisos", lugar: "Andén" }, AHORA + MIN)
+    expect(otro.ok && otro.reporte.ticketId).toBe(t.id)
+  })
+
   it("con departamento elegido, el ticket llega directo a esa área", () => {
     const { e, db } = preparar()
     expect(levantarTicket(db, e, c(e, "C-JE-TAC"), { station: "Tacubaya", asunto: "Luminaria del andén", detalle: "Dos lámparas apagadas en el andén de la Línea 1.", prioridad: "media", area: "mantenimiento" }, AHORA).ok).toBe(true)

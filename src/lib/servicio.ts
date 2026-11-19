@@ -204,6 +204,8 @@ export type Ticket = {
   cerrado?: number
   cerradoPor?: string
   reabierto?: number
+  /** Problema predefinido de los reportes que lo originaron (para sumar reportes iguales aunque la Mesa cambie el nombre). */
+  problema?: string
   /** Ticket del personal que la Mesa aún no turna a un área. */
   porTurnar?: boolean
   historial: EventoTicket[]
@@ -364,7 +366,7 @@ export function reportarServicio(db: BaseDatos, sesion: { seudonimo: string; exp
   const verificado = Boolean(db.usuarios[seud]?.verificado)
   const reporte: ReporteServicio = { id: siguienteFolio("RS-", sv.reportes.map((r) => r.id), 200), station: d.station, categoria: d.categoria, problema: d.problema, lugar: d.lugar, ts: now, seudonimo: seud, verificado }
   // Si ya hay un ticket abierto por lo mismo en esa estación, el reporte se suma a él.
-  const existente = sv.tickets.find((t) => t.clase === "ticket" && abierto(t) && t.station === d.station && t.asunto === problema.texto)
+  const existente = sv.tickets.find((t) => t.clase === "ticket" && abierto(t) && t.station === d.station && (t.problema ? t.problema === d.problema : t.asunto === problema.texto))
   if (existente) {
     reporte.ticketId = existente.id
     existente.reportes.push(reporte.id)
@@ -478,7 +480,10 @@ const negar = (e: EstadoConsola, quien: Cuenta, accion: string, objeto: string, 
 }
 
 /** La Mesa convierte un grupo de reportes en un ticket para el área responsable. */
-export function turnarReportes(db: BaseDatos, e: EstadoConsola, quien: Cuenta, reporteIds: string[], area: AreaId, prioridad: Prioridad, now: number): Resultado {
+/** Lo que la Mesa puede ajustar antes de turnar: nombre y descripción (la urgencia y el área van aparte). */
+export type AjustesTurnado = { asunto?: string; detalle?: string }
+
+export function turnarReportes(db: BaseDatos, e: EstadoConsola, quien: Cuenta, reporteIds: string[], area: AreaId, prioridad: Prioridad, now: number, ajustes: AjustesTurnado = {}): Resultado {
   const negado = exigir(e, quien, "tickets.gestionar", reporteIds.join(", "), now)
   if (negado) return negado
   const sv = asegurar(db)
@@ -489,6 +494,11 @@ export function turnarReportes(db: BaseDatos, e: EstadoConsola, quien: Cuenta, r
   if (!AREAS[area]) return { ok: false, codigo: 400, mensaje: "Elige un área." }
   const r0 = reportes[0]
   const problema = problemaPorId(r0.categoria, r0.problema)!
+  const asunto = ajustes.asunto?.trim() || problema.texto
+  const detalle = ajustes.detalle?.trim() || undefined
+  if (asunto.length > MAX_NOMBRE_TICKET) return { ok: false, codigo: 400, mensaje: `El nombre debe tener ${MAX_NOMBRE_TICKET} caracteres o menos.` }
+  if ((detalle?.length ?? 0) > MAX_DESCRIPCION_TICKET) return { ok: false, codigo: 400, mensaje: `La descripción debe tener ${MAX_DESCRIPCION_TICKET} caracteres o menos.` }
+  if (!["alta", "media", "baja"].includes(prioridad)) return { ok: false, codigo: 400, mensaje: "Elige la urgencia." }
   const id = siguienteFolio("TK-", sv.tickets.map((t) => t.id), 100)
   const personas = new Set(reportes.map((r) => r.seudonimo)).size
   sv.tickets.unshift({
@@ -496,7 +506,9 @@ export function turnarReportes(db: BaseDatos, e: EstadoConsola, quien: Cuenta, r
     clase: "ticket",
     area,
     station: r0.station,
-    asunto: problema.texto,
+    asunto,
+    detalle,
+    problema: r0.problema,
     lugar: r0.lugar,
     prioridad,
     estado: "nuevo",
@@ -508,7 +520,7 @@ export function turnarReportes(db: BaseDatos, e: EstadoConsola, quien: Cuenta, r
     historial: [{ ts: now, texto: `Turnado a ${AREAS[area].nombre} desde ${personas} ${personas === 1 ? "reporte" : "reportes"} de personas usuarias`, por: quien.nombre }],
   })
   for (const r of reportes) r.ticketId = id
-  auditar(e, { ...actor(quien), accion: "turnar reportes", objeto: `${id} · ${r0.station}`, resultado: "permitido", detalle: `${AREAS[area].nombre}, prioridad ${prioridad}` }, now)
+  auditar(e, { ...actor(quien), accion: "turnar reportes", objeto: `${id} · ${r0.station}`, resultado: "permitido", detalle: `${AREAS[area].nombre}, prioridad ${prioridad}${asunto !== problema.texto || detalle ? ", modificado antes de turnar" : ""}` }, now)
   return { ok: true, mensaje: `Se creó el ticket ${id} para ${AREAS[area].nombre}.` }
 }
 

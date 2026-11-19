@@ -531,8 +531,26 @@ export function LevantarTicket({ ctx, open, onClose, perfil }: { ctx: Ctx; open:
 
 function GrupoCard({ g, ctx }: { g: GrupoPorTurnar; ctx: Ctx }) {
   const [area, setArea] = useState<AreaId>(g.problema.area)
-  const [cambiar, setCambiar] = useState(false)
+  const [urgencia, setUrgencia] = useState<TPrioridad>(g.prioridad)
+  const [nombre, setNombre] = useState(g.problema.texto)
+  const [descripcion, setDescripcion] = useState("")
+  const [editando, setEditando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const personas = new Set(g.reportes.map((r) => r.seudonimo)).size
+  const modificado = nombre.trim() !== g.problema.texto || descripcion.trim() !== "" || urgencia !== g.prioridad || area !== g.problema.area
+  const k = g.clave.replace(/[^a-z0-9]/gi, "-")
+  const turnar = () => {
+    const r = ctx.operar((d, e, now) => turnarReportes(d, e, ctx.cuenta, g.reportes.map((x) => x.id), area, urgencia, now, { asunto: nombre, detalle: descripcion }))
+    if (!r.ok) setError(r.mensaje)
+  }
+  const deshacer = () => {
+    setArea(g.problema.area)
+    setUrgencia(g.prioridad)
+    setNombre(g.problema.texto)
+    setDescripcion("")
+    setError(null)
+    setEditando(false)
+  }
   return (
     <li className="tarjeta flex flex-col gap-2">
       <div className="flex items-start gap-3">
@@ -540,12 +558,13 @@ function GrupoCard({ g, ctx }: { g: GrupoPorTurnar; ctx: Ctx }) {
           <Icon name={ICONO_CATEGORIA[g.categoria]} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-extrabold leading-snug">{g.problema.texto}</p>
+          <p className="font-extrabold leading-snug">{nombre.trim() || g.problema.texto}</p>
+          {nombre.trim() !== g.problema.texto && <p className="text-xs text-ink-muted">Reportado como: {g.problema.texto}</p>}
           <p className="text-sm text-ink-muted">
             {g.station} · {g.lugar}
           </p>
         </div>
-        <Prioridad p={g.prioridad} />
+        <Prioridad p={urgencia} />
       </div>
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <span className="inline-flex items-center gap-1 font-bold">
@@ -558,25 +577,62 @@ function GrupoCard({ g, ctx }: { g: GrupoPorTurnar; ctx: Ctx }) {
         )}
         <span className="text-ink-muted">desde {hace(g.desde, ctx.ahora)}</span>
       </p>
-      {cambiar && (
-        <label className="text-sm">
-          <span className="field-label mb-1">Turnar a</span>
-          <select className="field-select" value={area} onChange={(e) => setArea(e.target.value as AreaId)}>
-            {ORDEN_AREAS.map((a) => (
-              <option key={a} value={a}>
-                {AREAS[a].nombre}
-              </option>
-            ))}
-          </select>
-        </label>
+      {editando && (
+        <div className="tarjeta-suave space-y-3">
+          <div>
+            <label htmlFor={`g-nombre-${k}`} className="field-label">
+              Nombre del ticket
+            </label>
+            <input id={`g-nombre-${k}`} className="field-select" maxLength={MAX_NOMBRE_TICKET} value={nombre} onChange={(e) => setNombre(e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor={`g-desc-${k}`} className="field-label">
+              Descripción (opcional)
+            </label>
+            <textarea id={`g-desc-${k}`} className="report-textarea min-h-16 w-full" maxLength={MAX_DESCRIPCION_TICKET} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Indicaciones para el área" />
+            <p className="mt-1 text-xs text-ink-muted">No escribas datos de las personas que reportaron.</p>
+          </div>
+          <fieldset>
+            <legend className="field-label">Urgencia</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {(["alta", "media", "baja"] as TPrioridad[]).map((p) => (
+                <button key={p} type="button" className="opcion-grande justify-center px-1 py-1.5 text-xs font-bold" aria-pressed={urgencia === p} onClick={() => setUrgencia(p)}>
+                  {PRIORIDAD_LABEL[p]}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <div>
+            <label htmlFor={`g-area-${k}`} className="field-label">
+              Departamento
+            </label>
+            <select id={`g-area-${k}`} className="field-select" value={area} onChange={(e) => setArea(e.target.value as AreaId)}>
+              {ORDEN_AREAS.map((a) => (
+                <option key={a} value={a}>
+                  {AREAS[a].nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+      {error && (
+        <p className="callout callout-warning mt-0" role="alert">
+          <Icon name="alert" size="sm" className="mt-0.5" />
+          {error}
+        </p>
       )}
       <div className="mt-auto flex flex-wrap gap-2 pt-1">
-        <button type="button" className="boton-rol flex-1" onClick={() => ctx.operar((d, e, now) => turnarReportes(d, e, ctx.cuenta, g.reportes.map((r) => r.id), area, g.prioridad, now))}>
+        <button type="button" className="boton-rol flex-1" disabled={!nombre.trim()} onClick={turnar}>
           <Icon name={ICONO_AREA[area]} size="sm" /> Turnar a {AREAS[area].nombre}
         </button>
-        {!cambiar && (
-          <button type="button" className="boton-borde" onClick={() => setCambiar(true)}>
-            Otra área
+        {!editando ? (
+          <button type="button" className="boton-borde" onClick={() => setEditando(true)}>
+            <Icon name="clipboard" size="sm" /> Modificar
+          </button>
+        ) : (
+          <button type="button" className="boton-borde" onClick={deshacer}>
+            {modificado ? "Deshacer cambios" : "Cerrar"}
           </button>
         )}
       </div>
