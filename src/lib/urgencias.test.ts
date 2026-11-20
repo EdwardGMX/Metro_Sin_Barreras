@@ -140,7 +140,7 @@ describe("Urgencias graves (RN15)", () => {
       expect(e.auditoria.some((a) => a.accion === "contestar llamada")).toBe(true)
     })
 
-    it("la persona puede cancelar mientras suena; una sola llamada abierta y máximo 3 al día", () => {
+    it("la persona puede cancelar mientras suena; una sola llamada abierta y sin límite de llamadas", () => {
       const { db } = conAna()
       const a = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "auxilio" }, AHORA)
       const b = llamarASeguridad(db, ana, { station: "Pantitlán", motivo: "robo" }, AHORA + 1000)
@@ -151,9 +151,11 @@ describe("Urgencias graves (RN15)", () => {
         const r = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "auxilio" }, AHORA + 10_000 * (i + 1))
         colgarPersonaUsuaria(db, ana.seudonimo, r.ok ? r.id : "", AHORA + 10_000 * (i + 1) + 1)
       }
-      const cuarta = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "auxilio" }, AHORA + 60_000)
-      expect(cuarta.ok).toBe(false)
-      if (!cuarta.ok) expect(cuarta.codigo).toBe(429)
+      for (let i = 0; i < 5; i++) {
+        const r = llamarASeguridad(db, ana, { station: "Tacubaya", motivo: "auxilio" }, AHORA + 60_000 + i * 1000)
+        expect(r.ok).toBe(true)
+        colgarPersonaUsuaria(db, ana.seudonimo, r.ok ? r.id : "", AHORA + 60_000 + i * 1000 + 1)
+      }
     })
 
     it("dos marcas de mal uso en 90 días bloquean el botón 30 días", () => {

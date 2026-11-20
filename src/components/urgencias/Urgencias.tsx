@@ -277,7 +277,6 @@ function TarjetaUrgencia({ u, ctx, suena }: { u: Urgencia; ctx: Ctx; suena: bool
           </div>
         )}
         {activa && !deLaEstacion && <p className="mt-2 text-sm font-bold">Avisamos al personal de {u.station}. La cierra su jefatura o su personal de seguridad.</p>}
-        {deUsuaria && activa && <p className="mt-2 text-xs text-ink-muted">En el prototipo la voz es simulada; en producción la llamada entra por la app.</p>}
       </div>
     </li>
   )

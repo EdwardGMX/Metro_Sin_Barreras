@@ -447,7 +447,7 @@ function PantallaLlamada({ u, now, onColgar, onCerrar }: { u: Urgencia; now: num
         </div>
       )}
       <p className="llamada-pie">
-        En el prototipo la voz es simulada; en producción sería una llamada por la app. Emergencia con riesgo para la vida:{" "}
+        Emergencia con riesgo para la vida:{" "}
         <a href="tel:911" className="font-extrabold underline">
           911
         </a>

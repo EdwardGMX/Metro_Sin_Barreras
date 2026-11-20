@@ -85,11 +85,10 @@ export const CIERRAN: RolId[] = ["jefe_estacion", "personal_seguridad"]
 /** Llamadas de personas usuarias: contesta seguridad de la estación; si nadie contesta en 30 s, suena también a la jefatura. */
 export const CONTESTAN: RolId[] = ["personal_seguridad", "jefe_estacion"]
 export const ESCALA_JEFATURA = 30_000
-/** Mal uso: con 2 marcas en 90 días, el botón se bloquea 30 días. Máximo 3 llamadas por día. */
+/** Mal uso: con 2 marcas en 90 días, el botón se bloquea 30 días. No hay límite de llamadas. */
 export const MAL_USO_LIMITE = 2
 export const MAL_USO_VENTANA = 90 * 24 * 60 * 60_000
 export const BLOQUEO_MAL_USO = 30 * 24 * 60 * 60_000
-export const LLAMADAS_POR_DIA = 3
 /** En el piloto solo estas estaciones tienen personal de seguridad conectado a la consola. */
 export const ESTACIONES_CON_SEGURIDAD = ESTACIONES_PILOTO
 
@@ -199,7 +198,6 @@ export function atenderUrgencia(db: BaseDatos, e: EstadoConsola, quien: Cuenta, 
  * - Mal uso: la jefatura o seguridad puede marcar la llamada como mal uso; con 2 marcas en 90
  *   días se bloquea el botón 30 días. Llamar con fines ociosos o dar falsas alarmas a servicios de
  *   emergencia es infracción según la Ley de Cultura Cívica de la Ciudad de México (art. 28, fr. IX).
- * - En el prototipo la voz es simulada; en producción sería una llamada por la app (VoIP).
  */
 
 function terminarLlamada(u: Urgencia, quien: "usuaria" | "oficial", now: number) {
@@ -241,11 +239,6 @@ export function llamarASeguridad(db: BaseDatos, quien: Llamante, d: DatosLlamada
   const lista = (db.urgencias ??= [])
   const abierta = lista.find((u) => u.origen === "usuaria" && u.seudonimo === quien.seudonimo && llamadaAbierta(u, now))
   if (abierta) return { ok: true, id: abierta.id, mensaje: "Ya tienes una llamada en curso." }
-  const hoy = lista.filter((u) => u.origen === "usuaria" && u.seudonimo === quien.seudonimo && now - u.ts < 24 * 60 * 60_000).length
-  if (hoy >= LLAMADAS_POR_DIA) {
-    registrarEvento(db, { evento: "llamada a seguridad", objeto: quien.seudonimo.slice(0, 10), decision: "límite diario (429)", rol: "sistema" }, now)
-    return { ok: false, codigo: 429, mensaje: `Llegaste al límite de ${LLAMADAS_POR_DIA} llamadas por día. En una emergencia llama al 911.` }
-  }
   const u: Urgencia = {
     id: siguienteFolio(lista),
     station: d.station,
